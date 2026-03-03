@@ -132,3 +132,27 @@ promo-hl.promo-hl-yellow:hover {
   color: rgba(100, 220, 255, 0.6);
   font-weight: 700;
 }
+
+/* ── False Positive Report Link ── */
+
+.promo-hl-tooltip-footer {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(100, 220, 255, 0.1);
+}
+
+.promo-hl-report-link {
+  display: inline-block;
+  font-size: 11px;
+  color: rgba(180, 190, 200, 0.55);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  letter-spacing: 0.02em;
+  pointer-events: auto;
+}
+
+.promo-hl-report-link:hover {
+  color: rgba(100, 220, 255, 0.9);
+  text-decoration: underline;
+}

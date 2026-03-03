@@ -2,10 +2,14 @@
  * @file        tooltip.js
  * @description Creates and manages a single shared tooltip element that
  *              displays promo-detection reasons when the user hovers over
- *              a highlighted <mark>.  Uses event delegation on the document
- *              body so it works with dynamically injected highlights.
+ *              a highlighted <promo-hl>.  Uses event delegation on the
+ *              document body so it works with dynamically injected highlights.
+ *
+ *              Includes a "False positive?" link that opens a pre-filled
+ *              GitHub Issue with the flagged text, severity, and page URL.
+ *
  * @module      PromoHighlighter.Tooltip
- * @version     0.1.0
+ * @version     0.2.0
  */
 
 window.PromoHighlighter = window.PromoHighlighter || {};
@@ -13,11 +17,24 @@ window.PromoHighlighter = window.PromoHighlighter || {};
 window.PromoHighlighter.Tooltip = (() => {
     const { CSS_CLASSES } = window.PromoHighlighter;
 
+    /* ====================================================================== */
+    /*  Config                                                                */
+    /* ====================================================================== */
+
+    /**
+     * GITHUB_REPO — the GitHub repository where false-positive reports
+     * are filed as Issues.  Update this to your actual repo URL.
+     */
+    const GITHUB_REPO = 'https://github.com/tejasns2408/reddit-promo-highlighter';
+
     /** Reference to the singleton tooltip element. */
     let tooltipEl = null;
 
     /** Is the tooltip system initialized? */
     let initialized = false;
+
+    /** Currently hovered highlight element — used to build report URL. */
+    let currentMark = null;
 
     /* ====================================================================== */
     /*  Private helpers                                                       */
@@ -75,14 +92,58 @@ window.PromoHighlighter.Tooltip = (() => {
     }
 
     /**
-     * Shows the tooltip with the given reasons and severity.
+     * buildReportUrl
+     * ----------------------------------------------------------------
+     * Constructs a pre-filled GitHub Issue URL with diagnostic info
+     * so the user doesn't need to describe anything manually.
      *
-     * @param {string[]} reasons  — Array of reason strings.
-     * @param {string}   severity — 'red' or 'yellow'.
-     * @param {MouseEvent} e      — The triggering mouse event.
+     * @param {string}   flaggedText — The text that was highlighted.
+     * @param {string}   severity    — 'red' or 'yellow'.
+     * @param {string[]} reasons     — Detection reasons.
+     * @returns {string} Full GitHub Issue URL.
      */
-    function showTooltip(reasons, severity, e) {
+    function buildReportUrl(flaggedText, severity, reasons) {
+        const truncated = flaggedText.length > 80
+            ? flaggedText.substring(0, 80) + '…'
+            : flaggedText;
+
+        const title = `[False Positive] "${truncated}"`;
+
+        const body = [
+            '## False Positive Report',
+            '',
+            `**Flagged text:** \`${flaggedText}\``,
+            `**Severity:** ${severity}`,
+            `**Reasons:** ${reasons.join(', ')}`,
+            `**Page URL:** ${location.href}`,
+            '',
+            '### Why is this a false positive?',
+            '<!-- Please briefly explain why this mention is not promotional -->',
+            '',
+        ].join('\n');
+
+        const params = new URLSearchParams({
+            title,
+            body,
+            labels: 'false-positive',
+        });
+
+        return `${GITHUB_REPO}/issues/new?${params.toString()}`;
+    }
+
+    /**
+     * Shows the tooltip with the given reasons, severity, and a
+     * "False positive?" report link.
+     *
+     * @param {string[]}    reasons  — Array of reason strings.
+     * @param {string}      severity — 'red' or 'yellow'.
+     * @param {MouseEvent}  e        — The triggering mouse event.
+     * @param {HTMLElement}  mark    — The highlighted element.
+     */
+    function showTooltip(reasons, severity, e, mark) {
         if (!tooltipEl) return;
+
+        currentMark = mark;
 
         // Build tooltip content
         const severityLabel = severity === 'red'
@@ -107,6 +168,23 @@ window.PromoHighlighter.Tooltip = (() => {
         });
         tooltipEl.appendChild(list);
 
+        // ── False Positive Report Link ────────────────────────────────
+        const reportUrl = buildReportUrl(mark.textContent, severity, reasons);
+        const footer = document.createElement('div');
+        footer.className = 'promo-hl-tooltip-footer';
+
+        const reportLink = document.createElement('a');
+        reportLink.href = reportUrl;
+        reportLink.target = '_blank';
+        reportLink.rel = 'noopener noreferrer';
+        reportLink.className = 'promo-hl-report-link';
+        reportLink.textContent = '⚑ False positive? Report it';
+        // Prevent tooltip from hiding when clicking the link
+        reportLink.addEventListener('mousedown', (ev) => ev.stopPropagation());
+
+        footer.appendChild(reportLink);
+        tooltipEl.appendChild(footer);
+
         // Position and show
         tooltipEl.classList.add('promo-hl-tooltip-visible');
         tooltipEl.setAttribute('aria-hidden', 'false');
@@ -120,6 +198,7 @@ window.PromoHighlighter.Tooltip = (() => {
         if (!tooltipEl) return;
         tooltipEl.classList.remove('promo-hl-tooltip-visible');
         tooltipEl.setAttribute('aria-hidden', 'true');
+        currentMark = null;
     }
 
     /* ====================================================================== */
@@ -145,7 +224,7 @@ window.PromoHighlighter.Tooltip = (() => {
         }
 
         const severity = mark.dataset.promoSeverity || 'yellow';
-        showTooltip(reasons, severity, e);
+        showTooltip(reasons, severity, e, mark);
     }
 
     /**
@@ -161,6 +240,10 @@ window.PromoHighlighter.Tooltip = (() => {
         // Only hide if we're actually leaving the mark
         const related = e.relatedTarget;
         if (related && mark.contains(related)) return;
+
+        // Don't hide if the mouse moves to the tooltip itself
+        // (so the user can click the report link)
+        if (related && tooltipEl && tooltipEl.contains(related)) return;
 
         hideTooltip();
     }
@@ -186,6 +269,15 @@ window.PromoHighlighter.Tooltip = (() => {
         document.body.addEventListener('mouseover', handleMouseOver, true);
         document.body.addEventListener('mouseout', handleMouseOut, true);
 
+        // Hide tooltip when mouse leaves the tooltip itself
+        // (but not when entering the report link inside it)
+        document.body.addEventListener('mouseover', (e) => {
+            if (tooltipEl && !tooltipEl.contains(e.target) &&
+                !e.target.closest(`promo-hl.${CSS_CLASSES.highlightRed}, promo-hl.${CSS_CLASSES.highlightYellow}`)) {
+                hideTooltip();
+            }
+        }, true);
+
         initialized = true;
     }
 
@@ -205,6 +297,7 @@ window.PromoHighlighter.Tooltip = (() => {
             tooltipEl.parentNode.removeChild(tooltipEl);
         }
         tooltipEl = null;
+        currentMark = null;
         initialized = false;
     }
 
