@@ -25,7 +25,7 @@ window.PromoHighlighter.Tooltip = (() => {
      * GITHUB_REPO — the GitHub repository where false-positive reports
      * are filed as Issues.  Update this to your actual repo URL.
      */
-    const GITHUB_REPO = 'https://github.com/tejasns2408/reddit-promo-highlighter';
+    const GITHUB_REPO = 'https://github.com/tejasns2408/octofind';
 
     /** Reference to the singleton tooltip element. */
     let tooltipEl = null;

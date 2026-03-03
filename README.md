@@ -17,7 +17,7 @@ A lightweight Chrome Extension (Manifest V3) that scans Reddit comments in real-
 1. Clone or download this repository
 2. Open Chrome → navigate to `chrome://extensions/`
 3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked** → select the `reddit-promo-highlighter/` folder
+4. Click **Load unpacked** → select the `octofind/` folder
 5. The extension icon appears in your toolbar — you're ready to go
 
 ## Architecture
