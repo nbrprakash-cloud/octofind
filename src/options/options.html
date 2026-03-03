@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Promo Highlighter — Settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <div class="options-wrapper">
+
+        <!-- ================================================================= -->
+        <!--  Header                                                           -->
+        <!-- ================================================================= -->
+        <header class="options-header">
+            <div class="header-brand">
+                <div class="header-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.4" />
+                        <path d="M15.5 9.5L10.5 14.5L8.5 12.5" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="header-title">Promo Highlighter</h1>
+                    <p class="header-subtitle">Reddit promotional-mention detector</p>
+                </div>
+            </div>
+            <span class="header-version">v0.1.0</span>
+        </header>
+
+        <!-- ================================================================= -->
+        <!--  Main Content                                                     -->
+        <!-- ================================================================= -->
+        <main class="options-main">
+
+            <!-- ─── Enable / Disable Card ──────────────────────────────── -->
+            <section class="card" id="section-toggle">
+                <div class="card-header">
+                    <div class="card-icon">⚡</div>
+                    <div>
+                        <h2 class="card-title">Extension Status</h2>
+                        <p class="card-desc">Enable or disable the highlighter globally</p>
+                    </div>
+                </div>
+                <div class="card-body toggle-card-body">
+                    <span class="toggle-status-label" id="toggle-status-label">Active</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="opt-enabled" aria-label="Enable or disable extension">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- ─── Keywords Card ──────────────────────────────────────── -->
+            <section class="card" id="section-keywords">
+                <div class="card-header">
+                    <div class="card-icon">🔑</div>
+                    <div>
+                        <h2 class="card-title">Keyword List</h2>
+                        <p class="card-desc">
+                            Add app/tool names to watch for. One keyword per line.
+                            Matching is case-insensitive with word-boundary checks.
+                        </p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <textarea id="opt-keywords" class="keywords-textarea" rows="12" spellcheck="false"
+                        aria-label="Keyword list, one per line" placeholder="Enter one keyword per line…"></textarea>
+                    <div class="keywords-meta">
+                        <span class="keyword-count" id="keyword-count">0 keywords</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─── Actions Card ───────────────────────────────────────── -->
+            <section class="card" id="section-actions">
+                <div class="card-header">
+                    <div class="card-icon">🛠</div>
+                    <div>
+                        <h2 class="card-title">Actions</h2>
+                        <p class="card-desc">Save your changes or reset everything to factory defaults</p>
+                    </div>
+                </div>
+                <div class="card-body actions-body">
+                    <button class="btn btn-primary" id="btn-save">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Save Settings
+                    </button>
+                    <button class="btn btn-danger" id="btn-reset">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <polyline points="1,4 1,10 7,10" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Reset to Defaults
+                    </button>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ================================================================= -->
+        <!--  Toast Notification                                               -->
+        <!-- ================================================================= -->
+        <div class="toast" id="toast" role="alert" aria-live="polite">
+            <span class="toast-icon" id="toast-icon">✓</span>
+            <span class="toast-message" id="toast-message">Settings saved</span>
+        </div>
+
+        <!-- ================================================================= -->
+        <!--  Footer                                                           -->
+        <!-- ================================================================= -->
+        <footer class="options-footer">
+            <span>Reddit Promo Highlighter &middot; Open Source</span>
+        </footer>
+
+    </div>
+
+    <script src="options.js"></script>
+</body>
+
+</html>

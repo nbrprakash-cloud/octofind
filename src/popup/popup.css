@@ -1,0 +1,170 @@
+/**
+ * @file        popup.css
+ * @description Styles for the browser-action popup.  Minimal dark-mode
+ *              design consistent with the options page aesthetic.
+ * @version     0.1.0
+ */
+
+/* ========================================================================== */
+/*  Reset & Base                                                              */
+/* ========================================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 280px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0c0c14;
+    color: #e0e6ed;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ========================================================================== */
+/*  Container                                                                 */
+/* ========================================================================== */
+
+.popup-container {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ========================================================================== */
+/*  Header                                                                    */
+/* ========================================================================== */
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.popup-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64dcff;
+}
+
+.popup-title {
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+}
+
+.popup-version {
+    font-size: 10px;
+    color: rgba(224, 230, 237, 0.35);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+/* ========================================================================== */
+/*  Toggle Row                                                                */
+/* ========================================================================== */
+
+.popup-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(100, 220, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.popup-toggle-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(224, 230, 237, 0.8);
+}
+
+/* ========================================================================== */
+/*  Toggle Switch                                                             */
+/* ========================================================================== */
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.12);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #555;
+    left: 3px;
+    top: 3px;
+    transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background: rgba(100, 220, 255, 0.25);
+    box-shadow: 0 0 10px rgba(100, 220, 255, 0.15);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(18px);
+    background: #64dcff;
+}
+
+/* ========================================================================== */
+/*  Status Text                                                               */
+/* ========================================================================== */
+
+.popup-status {
+    font-size: 11px;
+    color: rgba(224, 230, 237, 0.4);
+    text-align: center;
+    letter-spacing: 0.02em;
+}
+
+/* ========================================================================== */
+/*  Options Link                                                              */
+/* ========================================================================== */
+
+.popup-options-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(100, 220, 255, 0.7);
+    text-decoration: none;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(100, 220, 255, 0.08);
+    transition: all 0.2s ease;
+}
+
+.popup-options-link:hover {
+    background: rgba(100, 220, 255, 0.06);
+    color: #64dcff;
+    border-color: rgba(100, 220, 255, 0.2);
+}

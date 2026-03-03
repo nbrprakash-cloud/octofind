@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "Reddit Promo Highlighter",
+  "version": "0.1.0",
+  "description": "Scans Reddit comments in real-time and highlights likely promotional tool/app mentions with severity-coded highlights and hover tooltips.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.reddit.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.reddit.com/*"
+      ],
+      "js": [
+        "src/shared/constants.js",
+        "src/shared/defaults.js",
+        "src/shared/storage.js",
+        "src/content/detectors/keyword-detector.js",
+        "src/content/detectors/domain-detector.js",
+        "src/content/detectors/promo-language-detector.js",
+        "src/content/scoring-engine.js",
+        "src/content/highlighter.js",
+        "src/content/tooltip.js",
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  }
+}

@@ -1,0 +1,519 @@
+/**
+ * @file        options.css
+ * @description Styles for the full options / settings page.
+ *              Dark-mode, futuristic SaaS aesthetic with glassmorphism
+ *              cards, smooth transitions, and Inter typography.
+ * @version     0.1.0
+ */
+
+/* ========================================================================== */
+/*  CSS Custom Properties (Design Tokens)                                     */
+/* ========================================================================== */
+
+:root {
+    /* Backgrounds */
+    --bg-root: #07070d;
+    --bg-surface: rgba(255, 255, 255, 0.025);
+    --bg-surface-alt: rgba(255, 255, 255, 0.04);
+
+    /* Borders */
+    --border-subtle: rgba(100, 220, 255, 0.06);
+    --border-accent: rgba(100, 220, 255, 0.15);
+
+    /* Accent */
+    --accent: #64dcff;
+    --accent-glow: rgba(100, 220, 255, 0.12);
+    --accent-text: rgba(100, 220, 255, 0.9);
+
+    /* Text */
+    --text-primary: rgba(230, 237, 243, 0.92);
+    --text-secondary: rgba(200, 210, 220, 0.6);
+    --text-muted: rgba(180, 190, 200, 0.35);
+
+    /* Danger */
+    --danger: #ff6b6b;
+    --danger-glow: rgba(255, 107, 107, 0.1);
+
+    /* Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+
+    /* Transitions */
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================================================== */
+/*  Reset & Base                                                              */
+/* ========================================================================== */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg-root);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* Subtle animated background gradient */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at 20% 0%, rgba(100, 220, 255, 0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 100%, rgba(130, 100, 255, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ========================================================================== */
+/*  Layout Wrapper                                                            */
+/* ========================================================================== */
+
+.options-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 24px 32px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========================================================================== */
+/*  Header                                                                    */
+/* ========================================================================== */
+
+.options-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-icon {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: var(--accent-glow);
+    border: 1px solid var(--border-accent);
+}
+
+.header-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+}
+
+.header-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+.header-version {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+}
+
+/* ========================================================================== */
+/*  Main Content Area                                                         */
+/* ========================================================================== */
+
+.options-main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+}
+
+/* ========================================================================== */
+/*  Cards (Glassmorphism)                                                     */
+/* ========================================================================== */
+
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+
+.card:hover {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 30px rgba(100, 220, 255, 0.03);
+}
+
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.card-icon {
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface-alt);
+    border: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.005em;
+}
+
+.card-desc {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    line-height: 1.5;
+}
+
+.card-body {
+    /* Container for card-specific content */
+}
+
+/* ========================================================================== */
+/*  Toggle Card                                                               */
+/* ========================================================================== */
+
+.toggle-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-surface-alt);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+}
+
+.toggle-status-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-text);
+    transition: color 0.2s var(--ease);
+}
+
+.toggle-status-label.disabled {
+    color: var(--text-muted);
+}
+
+/* Toggle Switch (shared with popup) */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #555;
+    left: 3px;
+    top: 3px;
+    transition: transform 0.3s var(--ease), background 0.3s var(--ease);
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background: rgba(100, 220, 255, 0.2);
+    box-shadow: 0 0 12px rgba(100, 220, 255, 0.15);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(20px);
+    background: var(--accent);
+}
+
+/* ========================================================================== */
+/*  Keywords Textarea                                                         */
+/* ========================================================================== */
+
+.keywords-textarea {
+    width: 100%;
+    min-height: 180px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface-alt);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    resize: vertical;
+    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    outline: none;
+}
+
+.keywords-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.keywords-textarea:focus {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 0 3px rgba(100, 220, 255, 0.06);
+}
+
+.keywords-meta {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.keyword-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* ========================================================================== */
+/*  Action Buttons                                                            */
+/* ========================================================================== */
+
+.actions-body {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+    outline: none;
+    letter-spacing: 0.01em;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+/* Primary (save) */
+.btn-primary {
+    background: rgba(100, 220, 255, 0.12);
+    color: var(--accent);
+    border-color: rgba(100, 220, 255, 0.2);
+}
+
+.btn-primary:hover {
+    background: rgba(100, 220, 255, 0.2);
+    border-color: rgba(100, 220, 255, 0.35);
+    box-shadow: 0 0 20px rgba(100, 220, 255, 0.08);
+}
+
+/* Danger (reset) */
+.btn-danger {
+    background: rgba(255, 107, 107, 0.08);
+    color: var(--danger);
+    border-color: rgba(255, 107, 107, 0.15);
+}
+
+.btn-danger:hover {
+    background: rgba(255, 107, 107, 0.15);
+    border-color: rgba(255, 107, 107, 0.3);
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.06);
+}
+
+/* ========================================================================== */
+/*  Toast Notification                                                        */
+/* ========================================================================== */
+
+.toast {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    background: rgba(10, 10, 18, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-accent);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    z-index: 9999;
+
+    /* Hidden by default */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px);
+    transition: all 0.3s var(--ease);
+}
+
+.toast.toast-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.toast-icon {
+    font-size: 16px;
+}
+
+/* Toast variants */
+.toast.toast-success {
+    border-color: rgba(80, 220, 100, 0.3);
+}
+
+.toast.toast-success .toast-icon {
+    color: #50dc64;
+}
+
+.toast.toast-error {
+    border-color: rgba(255, 107, 107, 0.3);
+}
+
+.toast.toast-error .toast-icon {
+    color: var(--danger);
+}
+
+.toast.toast-info {
+    border-color: var(--border-accent);
+}
+
+.toast.toast-info .toast-icon {
+    color: var(--accent);
+}
+
+/* ========================================================================== */
+/*  Footer                                                                    */
+/* ========================================================================== */
+
+.options-footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-subtle);
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+/* ========================================================================== */
+/*  Responsive                                                                */
+/* ========================================================================== */
+
+@media (max-width: 480px) {
+    .options-wrapper {
+        padding: 24px 16px 24px;
+    }
+
+    .options-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .header-version {
+        align-self: flex-start;
+    }
+
+    .actions-body {
+        flex-direction: column;
+    }
+
+    .btn {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .toast {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+    }
+}
+
+/* ========================================================================== */
+/*  Scrollbar (webkit / blink)                                                */
+/* ========================================================================== */
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
