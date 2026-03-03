@@ -57,13 +57,9 @@ window.PromoHighlighter.SCORING_CONFIG = Object.freeze({
  * CSS selectors targeting New Reddit's DOM structure.
  * If Reddit changes class names, update ONLY here.
  *
- * CRITICAL: commentBody selectors are scoped to comment containers
- * only — they must NEVER match the post title/body area.
- * Using bare ".md" would match every markdown block on the page
- * (including post titles), causing highlight bars in layout areas.
- *
  * • commentContainer — the root that wraps all comment trees
  * • commentBody      — individual comment text body (comments only)
+ * • postBody         — the post's text content area (self-text posts)
  * • skippedTags      — elements whose inner text we must never highlight
  */
 window.PromoHighlighter.SELECTORS = Object.freeze({
@@ -82,6 +78,22 @@ window.PromoHighlighter.SELECTORS = Object.freeze({
     commentBody: 'shreddit-comment .md,' +
         '.Comment .RichTextJSON-root,' +
         '[data-testid="comment"] [data-testid="comment-body"]',
+
+    /**
+     * Post body selectors — targets the self-text area of Reddit posts.
+     *
+     * shreddit-post .md, [slot="text-body"] .md   → Shreddit redesign
+     * .Post .RichTextJSON-root                    → Legacy new Reddit
+     * [data-testid="post-content"] .md            → test-id path
+     * [data-click-id="text"] .md                  → click-tracking path
+     *
+     * NOTE: Post titles are NOT targeted — only the expanded self-text body.
+     */
+    postBody: 'shreddit-post [slot="text-body"] .md,' +
+        'shreddit-post .text-neutral-content .md,' +
+        '.Post .RichTextJSON-root,' +
+        '[data-testid="post-content"] .md,' +
+        '[data-click-id="text"] .md',
 
     /** Tags whose children we never walk into when highlighting */
     skippedTags: ['CODE', 'PRE', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT'],

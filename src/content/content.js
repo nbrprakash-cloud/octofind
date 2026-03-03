@@ -4,12 +4,14 @@
  *              pipeline: load settings → initial scan → attach MutationObserver
  *              → react to setting changes → handle Reddit SPA navigation.
  *
+ *              Scans BOTH comments AND post bodies for promotional mentions.
+ *
  *              This is the LAST file loaded (see manifest.json content_scripts
  *              order), so all other modules are guaranteed to be available on
  *              window.PromoHighlighter by the time this executes.
  *
  * @module      PromoHighlighter.ContentScript
- * @version     0.1.2
+ * @version     0.2.0
  */
 
 window.PromoHighlighter = window.PromoHighlighter || {};
@@ -51,23 +53,22 @@ window.PromoHighlighter.ContentScript = (() => {
     /* ====================================================================== */
 
     /**
-     * isInsideCommentArea
+     * isInsideScanArea
      * ----------------------------------------------------------------
-     * Checks if a node lives inside the main comment thread area,
-     * NOT in the sidebar, header, promoted ads, or navigation.
-     *
-     * This prevents the highlighter from polluting sidebar cards,
-     * promoted posts, "Related Answers" panels, etc.
+     * Checks if a node lives inside a scannable area (comment thread
+     * OR post body), NOT in the sidebar, header, promoted ads, or nav.
      *
      * @param {Node} node — The node to check.
-     * @returns {boolean} True if the node is inside the comment thread.
+     * @returns {boolean} True if the node is inside a scannable area.
      */
-    function isInsideCommentArea(node) {
+    function isInsideScanArea(node) {
         const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
         if (!el) return false;
 
-        // Fast check: is this node inside a shreddit-comment?
+        // Fast check: is this node inside a comment or post?
         if (el.closest('shreddit-comment')) return true;
+        if (el.closest('shreddit-post')) return true;
+        if (el.closest('.Post')) return true;
 
         // Fallback: is it inside a known comment container?
         const containers = SELECTORS.commentContainer.split(',');
@@ -89,14 +90,17 @@ window.PromoHighlighter.ContentScript = (() => {
     /**
      * processComment
      * ----------------------------------------------------------------
-     * Analyzes a single comment body element and applies highlights
+     * Analyzes a single comment/post body element and applies highlights
      * if the scoring result warrants it.
      *
-     * IMPORTANT: This should only be called with elements that have
-     * already been filtered through commentBody selectors.  Never
-     * call this on arbitrary DOM nodes.
+     * Also extracts URLs from hyperlinks (<a> tags) within the element
+     * so that domains hidden behind link text (e.g. [click here](url))
+     * are still caught by the domain detector.
      *
-     * @param {HTMLElement} commentEl — A comment body element.
+     * IMPORTANT: This should only be called with elements that have
+     * already been filtered through commentBody/postBody selectors.
+     *
+     * @param {HTMLElement} commentEl — A comment or post body element.
      */
     function processComment(commentEl) {
         // Guard: skip if already processed or extension disabled
@@ -106,39 +110,102 @@ window.PromoHighlighter.ContentScript = (() => {
         // Mark as processed BEFORE analysis to prevent double-processing
         processedNodes.add(commentEl);
 
-        // Extract plain text from the comment (textContent strips HTML)
+        // Extract plain text from the element (textContent strips HTML)
         const text = commentEl.textContent;
         if (!text || text.trim().length < 3) return;
 
+        // ── Extract URLs from hyperlinks ──────────────────────────────
+        // When a user writes [tool name](https://tool.com), textContent
+        // only sees "tool name". We pull out the href so the domain
+        // detector can flag "tool.com".
+        const links = commentEl.querySelectorAll('a[href]');
+        const hrefs = [];
+        links.forEach((a) => {
+            const href = a.getAttribute('href');
+            if (href && !href.startsWith('#') && !href.startsWith('/') &&
+                !href.startsWith('javascript:')) {
+                // Extract just the hostname for cleaner detection
+                try {
+                    const url = new URL(href);
+                    hrefs.push(url.hostname);
+                } catch {
+                    // Not a valid URL — include raw href as-is
+                    hrefs.push(href);
+                }
+            }
+        });
+
+        // Append extracted URLs to the text so detectors can see them
+        const enrichedText = hrefs.length > 0
+            ? text + ' ' + hrefs.join(' ')
+            : text;
+
         // Run through the scoring engine
-        const analysis = ScoringEngine.analyzeText(text, settings.keywords);
+        const analysis = ScoringEngine.analyzeText(enrichedText, settings.keywords);
 
         // Only highlight if a severity threshold was crossed
         if (analysis.severity) {
             Highlighter.highlightComment(commentEl, analysis);
+
+            // ── Highlight suspicious links directly ───────────────────
+            // The text highlighter wraps text nodes, but link domains live
+            // in href attributes. Apply highlight styling directly to <a>
+            // tags whose hostname was flagged.
+            const sevClass = analysis.severity === 'red'
+                ? CSS_CLASSES.highlightRed
+                : CSS_CLASSES.highlightYellow;
+
+            links.forEach((a) => {
+                const href = a.getAttribute('href');
+                if (!href) return;
+                try {
+                    const hostname = new URL(href).hostname;
+                    // Check if this hostname contributed to the score
+                    const domainMatched = analysis.matches?.some(
+                        (m) => hostname.includes(m.term) || m.term.includes(hostname)
+                    );
+                    if (domainMatched) {
+                        a.classList.add(sevClass);
+                        a.dataset.promoSeverity = analysis.severity;
+                        a.dataset.promoReasons = JSON.stringify(analysis.reasons);
+                        if (analysis.severity === 'red') {
+                            a.style.setProperty('background', 'rgba(220,53,69,0.38)', 'important');
+                            a.style.setProperty('border-bottom', '2px solid rgba(220,53,69,0.7)', 'important');
+                        } else {
+                            a.style.setProperty('background', 'rgba(255,193,7,0.40)', 'important');
+                            a.style.setProperty('border-bottom', '2px solid rgba(255,193,7,0.7)', 'important');
+                        }
+                        a.style.setProperty('border-radius', '3px', 'important');
+                        a.style.setProperty('padding', '1px 3px', 'important');
+                    }
+                } catch { /* not a valid URL */ }
+            });
         }
     }
 
     /**
-     * findAndProcessComments
+     * findAndProcessContent
      * ----------------------------------------------------------------
-     * Queries the DOM for comment body elements using SCOPED selectors
-     * and processes any that haven't been seen yet.
+     * Queries the DOM for BOTH comment body AND post body elements
+     * using SCOPED selectors, and processes any not yet seen.
      *
      * CRITICAL: This is the ONLY function that should initiate
-     * comment processing.  The selectors in SELECTORS.commentBody
-     * are scoped to comment containers (e.g. `shreddit-comment .md`)
-     * so they never match post titles, sidebar cards, or ads.
+     * processing. The selectors are scoped to known containers
+     * so they never match sidebar cards, ads, or nav elements.
      *
      * @param {HTMLElement} [root=document] — Subtree root to search within.
      */
-    function findAndProcessComments(root = document) {
+    function findAndProcessContent(root = document) {
         if (!settings || !settings.enabled) return;
 
-        const selectors = SELECTORS.commentBody.split(',');
+        // Combine comment + post selectors
+        const allSelectors = [
+            ...SELECTORS.commentBody.split(','),
+            ...SELECTORS.postBody.split(','),
+        ];
         const seen = new Set();
 
-        for (const selector of selectors) {
+        for (const selector of allSelectors) {
             try {
                 const elements = root.querySelectorAll(selector.trim());
                 elements.forEach((el) => {
@@ -163,7 +230,7 @@ window.PromoHighlighter.ContentScript = (() => {
      * Uses requestIdleCallback (with setTimeout fallback) to process
      * accumulated nodes during the browser's idle periods.
      *
-     * KEY DESIGN: We ONLY call findAndProcessComments on added nodes,
+     * KEY DESIGN: We ONLY call findAndProcessContent on added nodes,
      * which applies the scoped commentBody selectors as a gate.
      * We do NOT call processComment directly on the mutation node
      * itself — that would bypass selector scoping and highlight
@@ -182,10 +249,10 @@ window.PromoHighlighter.ContentScript = (() => {
             // Process each added subtree — ONLY through scoped selectors
             for (const node of nodes) {
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    // Use findAndProcessComments which applies scoped
+                    // Use findAndProcessContent which applies scoped
                     // selectors — this ensures we NEVER highlight outside
                     // the comment thread (no sidebar, no ads, no post title)
-                    findAndProcessComments(node);
+                    findAndProcessContent(node);
                 }
             }
         };
@@ -290,7 +357,7 @@ window.PromoHighlighter.ContentScript = (() => {
 
             // Small delay to let Reddit render the new page content
             setTimeout(() => {
-                findAndProcessComments();
+                findAndProcessContent();
             }, 800);
         }
     }
@@ -304,7 +371,7 @@ window.PromoHighlighter.ContentScript = (() => {
         window.addEventListener('popstate', () => {
             setTimeout(() => {
                 lastUrl = location.href;
-                findAndProcessComments();
+                findAndProcessContent();
             }, 800);
         });
 
@@ -329,7 +396,7 @@ window.PromoHighlighter.ContentScript = (() => {
 
         if (settings.enabled && !wasEnabled) {
             Tooltip.init();
-            findAndProcessComments();
+            findAndProcessContent();
             startObserver();
         } else if (!settings.enabled && wasEnabled) {
             stopObserver();
@@ -337,7 +404,7 @@ window.PromoHighlighter.ContentScript = (() => {
             Tooltip.destroy();
         } else if (settings.enabled) {
             Highlighter.removeHighlights();
-            findAndProcessComments();
+            findAndProcessContent();
         }
     }
 
@@ -363,7 +430,7 @@ window.PromoHighlighter.ContentScript = (() => {
             if (settings.enabled) {
                 Tooltip.init();
                 // Delay lets Reddit finish initial render
-                setTimeout(() => findAndProcessComments(), 300);
+                setTimeout(() => findAndProcessContent(), 300);
                 startObserver();
             }
 
