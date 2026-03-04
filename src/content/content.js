@@ -48,6 +48,9 @@ window.PromoHighlighter.ContentScript = (() => {
     /** ID of the scheduled idle callback / timeout. */
     let idleCallbackId = null;
 
+    /** Number of promos found on the current page — sent to badge. */
+    let promoCount = 0;
+
     /* ====================================================================== */
     /*  Scope Guard                                                           */
     /* ====================================================================== */
@@ -81,6 +84,173 @@ window.PromoHighlighter.ContentScript = (() => {
         }
 
         return false;
+    }
+
+    /* ====================================================================== */
+    /*  Badge Helper                                                          */
+    /* ====================================================================== */
+
+    /** Debounce timer for badge updates. */
+    let badgeTimer = null;
+
+    /**
+     * updateBadge
+     * ----------------------------------------------------------------
+     * Sends the current promo count to the service worker so it can
+     * display a badge number on the extension icon. Debounced to
+     * avoid spamming during batch processing.
+     */
+    function updateBadge() {
+        if (badgeTimer) clearTimeout(badgeTimer);
+        badgeTimer = setTimeout(() => {
+            try {
+                chrome.runtime.sendMessage({
+                    type: 'PROMO_COUNT',
+                    count: promoCount,
+                });
+            } catch {
+                // Extension context invalidated — ignore
+            }
+        }, 100);
+    }
+
+    /* ====================================================================== */
+    /*  Username Badge Injection                                              */
+    /* ====================================================================== */
+
+    /** GitHub repo for false-positive reports (same as tooltip.js) */
+    const BADGE_GITHUB_REPO = 'https://github.com/tejasns2408-jpg/octofinder';
+
+    /**
+     * buildBadgeReportUrl
+     * ----------------------------------------------------------------
+     * Builds a pre-filled GitHub Issue URL for false-positive reports
+     * from the username badge.
+     *
+     * @param {string}   username  — The Reddit username.
+     * @param {string}   severity  — 'red' or 'yellow'.
+     * @param {string[]} reasons   — Detection reasons.
+     * @returns {string} GitHub Issue URL.
+     */
+    function buildBadgeReportUrl(username, severity, reasons) {
+        const title = `[False Positive] u/${username}`;
+        const body = [
+            '## False Positive Report',
+            '',
+            `**User:** u/${username}`,
+            `**Severity:** ${severity}`,
+            `**Reasons:** ${reasons.join(', ')}`,
+            `**Page URL:** ${location.href}`,
+            '',
+            '### Why is this a false positive?',
+            '<!-- Briefly explain why this flag is incorrect -->',
+            '',
+        ].join('\n');
+
+        const params = new URLSearchParams({
+            title,
+            body,
+            labels: 'false-positive',
+        });
+
+        return `${BADGE_GITHUB_REPO}/issues/new?${params.toString()}`;
+    }
+
+    /**
+     * injectUsernameBadge
+     * ----------------------------------------------------------------
+     * Finds the username link associated with a flagged comment/post
+     * and injects a small pill badge next to it showing the promo
+     * likelihood level + a hover-reveal false-positive report link.
+     *
+     * @param {HTMLElement} commentEl — The comment/post body element.
+     * @param {Object}      analysis — The scoring result { severity, reasons, ... }.
+     */
+    function injectUsernameBadge(commentEl, analysis) {
+        if (!analysis.severity) return;
+
+        // Walk up to find the comment/post wrapper
+        const wrapper = commentEl.closest('shreddit-comment') ||
+            commentEl.closest('.Comment') ||
+            commentEl.closest('[data-testid="comment"]') ||
+            commentEl.closest('shreddit-post') ||
+            commentEl.closest('.Post');
+        if (!wrapper) return;
+
+        // Find the username link inside the wrapper
+        const usernameLink = wrapper.querySelector(SELECTORS.usernameLink);
+        if (!usernameLink) return;
+
+        // Skip avatar links (they have "avatar" in aria-label)
+        const ariaLabel = usernameLink.getAttribute('aria-label') || '';
+        if (ariaLabel.includes('avatar')) {
+            // Try next sibling link
+            const allLinks = wrapper.querySelectorAll(SELECTORS.usernameLink);
+            let found = null;
+            for (const link of allLinks) {
+                const label = link.getAttribute('aria-label') || '';
+                if (!label.includes('avatar')) {
+                    found = link;
+                    break;
+                }
+            }
+            if (!found) return;
+            return injectBadgeNextTo(found, analysis);
+        }
+
+        injectBadgeNextTo(usernameLink, analysis);
+    }
+
+    /**
+     * injectBadgeNextTo
+     * ----------------------------------------------------------------
+     * Creates and inserts the badge element next to a username link.
+     *
+     * @param {HTMLElement} usernameEl — The username <a> element.
+     * @param {Object}      analysis  — { severity, reasons }.
+     */
+    function injectBadgeNextTo(usernameEl, analysis) {
+        // Guard: don't inject if badge already exists for this username
+        const parent = usernameEl.parentElement;
+        if (!parent) return;
+        if (parent.querySelector('.' + CSS_CLASSES.usernameBadge)) return;
+
+        // Extract username from href (e.g. "/user/n4r735/" → "n4r735")
+        const href = usernameEl.getAttribute('href') || '';
+        const username = href.replace(/^\/user\//, '').replace(/\/$/, '') || 'unknown';
+
+        // Build badge element
+        const badge = document.createElement('span');
+        badge.className = `${CSS_CLASSES.usernameBadge} ${analysis.severity === 'red'
+            ? CSS_CLASSES.usernameBadgeRed
+            : CSS_CLASSES.usernameBadgeYellow
+            }`;
+
+        const label = analysis.severity === 'red'
+            ? '🔴 Likely Promo'
+            : '🟡 Possible Promo';
+        badge.textContent = label;
+
+        // Store data for tooltip interop
+        badge.dataset.promoSeverity = analysis.severity;
+        badge.dataset.promoReasons = JSON.stringify(analysis.reasons);
+
+        // ── False-positive report dropdown (shown on hover via CSS) ──
+        const reportDiv = document.createElement('div');
+        reportDiv.className = 'promo-hl-badge-report';
+
+        const reportLink = document.createElement('a');
+        reportLink.href = buildBadgeReportUrl(username, analysis.severity, analysis.reasons);
+        reportLink.target = '_blank';
+        reportLink.rel = 'noopener noreferrer';
+        reportLink.textContent = '⚑ Report false positive';
+        reportLink.addEventListener('mousedown', (ev) => ev.stopPropagation());
+
+        reportDiv.appendChild(reportLink);
+        badge.appendChild(reportDiv);
+
+        // Insert badge right after the username link
+        usernameEl.after(badge);
     }
 
     /* ====================================================================== */
@@ -145,7 +315,9 @@ window.PromoHighlighter.ContentScript = (() => {
 
         // Only highlight if a severity threshold was crossed
         if (analysis.severity) {
+            promoCount++;
             Highlighter.highlightComment(commentEl, analysis);
+            updateBadge();
 
             // ── Highlight suspicious links directly ───────────────────
             // The text highlighter wraps text nodes, but link domains live
@@ -180,6 +352,9 @@ window.PromoHighlighter.ContentScript = (() => {
                     }
                 } catch { /* not a valid URL */ }
             });
+
+            // ── Username badge injection ──────────────────────────────
+            injectUsernameBadge(commentEl, analysis);
         }
     }
 
@@ -354,6 +529,8 @@ window.PromoHighlighter.ContentScript = (() => {
     function checkUrlChange() {
         if (location.href !== lastUrl) {
             lastUrl = location.href;
+            promoCount = 0;
+            updateBadge();
 
             // Small delay to let Reddit render the new page content
             setTimeout(() => {
@@ -369,6 +546,8 @@ window.PromoHighlighter.ContentScript = (() => {
      */
     function setupNavigationListeners() {
         window.addEventListener('popstate', () => {
+            promoCount = 0;
+            updateBadge();
             setTimeout(() => {
                 lastUrl = location.href;
                 findAndProcessContent();
@@ -402,6 +581,8 @@ window.PromoHighlighter.ContentScript = (() => {
             stopObserver();
             Highlighter.removeHighlights();
             Tooltip.destroy();
+            promoCount = 0;
+            updateBadge();
         } else if (settings.enabled) {
             Highlighter.removeHighlights();
             findAndProcessContent();

@@ -54,3 +54,35 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         await chrome.storage.sync.set({ [STORAGE_KEY]: merged });
     }
 });
+
+/* -------------------------------------------------------------------------- */
+/*  Badge Counter                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Listens for messages from the content script to update the badge
+ * on the extension icon with the number of promos found on the page.
+ */
+chrome.runtime.onMessage.addListener((message, sender) => {
+    if (message.type === 'PROMO_COUNT' && sender.tab?.id) {
+        const count = message.count || 0;
+        const tabId = sender.tab.id;
+
+        if (count > 0) {
+            chrome.action.setBadgeText({ text: String(count), tabId });
+            chrome.action.setBadgeBackgroundColor({ color: '#dc3545', tabId });
+        } else {
+            chrome.action.setBadgeText({ text: '', tabId });
+        }
+    }
+});
+
+/**
+ * Reset badge when the user navigates to a different page within the tab.
+ */
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'loading') {
+        chrome.action.setBadgeText({ text: '', tabId });
+    }
+});
+

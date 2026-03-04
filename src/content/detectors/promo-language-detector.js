@@ -163,6 +163,55 @@ window.PromoHighlighter.PromoPhraseDetector = (() => {
             reason: 'Pushed tool recommendation',
             category: 'H',
         },
+
+        // ── I. Urgency / scarcity language ────────────────────────────
+        {
+            pattern: /\b(limited\s+time|limited\s+offer|act\s+(fast|now)|hurry|while\s+(supplies|it)\s+last|don'?t\s+miss\s+(out|this))\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase * 3,
+            reason: 'Urgency or scarcity language',
+            category: 'I',
+        },
+        {
+            pattern: /\b(exclusive\s+(deal|offer|access|discount)|only\s+\d+\s+(spots?|seats?|left))\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase * 3,
+            reason: 'Exclusive/scarcity offer',
+            category: 'I',
+        },
+
+        // ── J. Onboarding CTAs ────────────────────────────────────────
+        {
+            pattern: /\b(get\s+started|getting\s+started|start\s+(here|now|today)|sign\s*up\s*(for|now|today|here|free)?)\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase * 2,
+            reason: 'Onboarding call-to-action',
+            category: 'J',
+        },
+        {
+            pattern: /\b(link\s+your\s+(account|broker|wallet|card)|connect\s+your\s+(account|broker|wallet))\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase * 3,
+            reason: 'Account linking prompt (likely promo)',
+            category: 'J',
+        },
+        {
+            pattern: /\b(join\s+(our|the)\s+(discord|community|waitlist|telegram|slack)|subscribe\s+(to|now|today|here))\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase * 2,
+            reason: 'Community/subscribe CTA',
+            category: 'J',
+        },
+
+        // ── K. Stealth disclaimers ────────────────────────────────────
+        // "not sponsored but" is almost always a tell
+        {
+            pattern: /\b(not\s+(an?\s+)?ad\s+but|no\s+affiliation\s+but|i'?m\s+not\s+(paid|sponsored)\s+but|full\s+disclosure|disclaimer)\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase * 2,
+            reason: 'Stealth disclaimer (often precedes promo)',
+            category: 'K',
+        },
+        {
+            pattern: /\b(long\s+story\s+short|tbh\s+i'?ve\s+been|honestly\s+i'?ve\s+been\s+using)\b/i,
+            score: SCORING_CONFIG.weights.promoPhrase,
+            reason: 'Casual pitch framing',
+            category: 'K',
+        },
     ];
 
     /* ====================================================================== */

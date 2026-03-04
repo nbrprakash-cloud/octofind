@@ -97,6 +97,15 @@ window.PromoHighlighter.SELECTORS = Object.freeze({
 
     /** Tags whose children we never walk into when highlighting */
     skippedTags: ['CODE', 'PRE', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT'],
+
+    /**
+     * Username link selectors — targets the clickable username near comments/posts.
+     *
+     * shreddit-comment a[href^="/user/"]   → Shreddit redesign
+     * .Comment a.author                    → Legacy new Reddit
+     * shreddit-post a[href^="/user/"]      → Post author (Shreddit)
+     */
+    usernameLink: 'a[href^="/user/"]',
 });
 
 /* -------------------------------------------------------------------------- */
@@ -114,4 +123,7 @@ window.PromoHighlighter.CSS_CLASSES = Object.freeze({
     highlightYellow: 'promo-hl-yellow',
     tooltip: 'promo-hl-tooltip',
     processed: 'promo-hl-processed',   // Marker on scanned comment nodes
+    usernameBadge: 'promo-hl-user-badge', // Pill badge next to usernames
+    usernameBadgeRed: 'promo-hl-user-badge-red',
+    usernameBadgeYellow: 'promo-hl-user-badge-yellow',
 });

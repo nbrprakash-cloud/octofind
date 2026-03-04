@@ -295,12 +295,13 @@ window.PromoHighlighter.Highlighter = (() => {
     /**
      * removeHighlights
      * ----------------------------------------------------------------
-     * Removes all promo highlights from the page (or a subtree).
-     * Used when the user disables the extension.
+     * Removes all promo highlights and username badges from the page
+     * (or a subtree). Used when the user disables the extension.
      *
      * @param {HTMLElement} [root=document.body] — Root element to clean.
      */
     function removeHighlights(root = document.body) {
+        // Remove highlight <promo-hl> elements
         const highlights = root.querySelectorAll(
             `promo-hl.${CSS_CLASSES.highlightRed}, promo-hl.${CSS_CLASSES.highlightYellow}`
         );
@@ -316,6 +317,10 @@ window.PromoHighlighter.Highlighter = (() => {
             // Normalize merges adjacent text nodes back together
             parent.normalize();
         });
+
+        // Remove username badges
+        const badges = root.querySelectorAll('.' + CSS_CLASSES.usernameBadge);
+        badges.forEach((badge) => badge.remove());
     }
 
     /* ====================================================================== */

@@ -101,6 +101,7 @@ promo-hl.promo-hl-yellow:hover {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 .promo-hl-tooltip-header {
@@ -155,4 +156,92 @@ promo-hl.promo-hl-yellow:hover {
 .promo-hl-report-link:hover {
   color: rgba(100, 220, 255, 0.9);
   text-decoration: underline;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Username Promo Badge                                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+.promo-hl-user-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  padding: 2px 7px !important;
+  border-radius: 9px !important;
+  margin-left: 6px !important;
+  vertical-align: middle !important;
+  letter-spacing: 0.03em !important;
+  white-space: nowrap !important;
+  cursor: default !important;
+  animation: promoHlBadgeFadeIn 0.25s ease-out;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  position: relative !important;
+}
+
+/* Red — high likelihood */
+.promo-hl-user-badge-red {
+  background: rgba(220, 53, 69, 0.18) !important;
+  color: #e85d6f !important;
+  border: 1px solid rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Yellow — medium likelihood */
+.promo-hl-user-badge-yellow {
+  background: rgba(255, 193, 7, 0.15) !important;
+  color: #d4a017 !important;
+  border: 1px solid rgba(255, 193, 7, 0.22) !important;
+}
+
+/* Hover state — slightly brighter */
+.promo-hl-user-badge:hover {
+  filter: brightness(1.15);
+}
+
+/* ── Badge report link (shown on click) ── */
+
+.promo-hl-badge-report {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1c22;
+  border: 1px solid rgba(100, 220, 255, 0.15);
+  border-radius: 6px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  z-index: 2147483647;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.promo-hl-user-badge:hover .promo-hl-badge-report,
+.promo-hl-badge-report:hover {
+  display: block;
+}
+
+.promo-hl-badge-report a {
+  font-size: 10px !important;
+  color: rgba(180, 190, 200, 0.7) !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+.promo-hl-badge-report a:hover {
+  color: rgba(100, 220, 255, 0.9) !important;
+  text-decoration: underline !important;
+}
+
+/* Fade-in animation */
+@keyframes promoHlBadgeFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

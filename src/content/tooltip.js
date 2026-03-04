@@ -36,6 +36,16 @@ window.PromoHighlighter.Tooltip = (() => {
     /** Currently hovered highlight element — used to build report URL. */
     let currentMark = null;
 
+    /** Timer ID for delayed tooltip hide (3-second linger). */
+    let hideTimer = null;
+
+    /** Selectors for all tooltip-triggering elements. */
+    const TRIGGER_SELECTOR = [
+        `promo-hl.${CSS_CLASSES.highlightRed}`,
+        `promo-hl.${CSS_CLASSES.highlightYellow}`,
+        `.${CSS_CLASSES.usernameBadge}`,
+    ].join(', ');
+
     /* ====================================================================== */
     /*  Private helpers                                                       */
     /* ====================================================================== */
@@ -192,9 +202,38 @@ window.PromoHighlighter.Tooltip = (() => {
     }
 
     /**
-     * Hides the tooltip.
+     * Hides the tooltip after a delay (default 3 seconds).
+     * Allows time for the user to move their cursor to the
+     * tooltip and click the report link.
+     *
+     * @param {number} [delay=3000] — Milliseconds before hiding.
+     */
+    function scheduleHide(delay = 3000) {
+        cancelHide();
+        hideTimer = setTimeout(() => {
+            if (!tooltipEl) return;
+            tooltipEl.classList.remove('promo-hl-tooltip-visible');
+            tooltipEl.setAttribute('aria-hidden', 'true');
+            currentMark = null;
+        }, delay);
+    }
+
+    /**
+     * Cancels any pending hide timer (e.g. when re-entering
+     * the tooltip or trigger element).
+     */
+    function cancelHide() {
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+    }
+
+    /**
+     * Immediately hides the tooltip (no delay).
      */
     function hideTooltip() {
+        cancelHide();
         if (!tooltipEl) return;
         tooltipEl.classList.remove('promo-hl-tooltip-visible');
         tooltipEl.setAttribute('aria-hidden', 'true');
@@ -206,14 +245,17 @@ window.PromoHighlighter.Tooltip = (() => {
     /* ====================================================================== */
 
     /**
-     * Handles mouseenter on highlight marks via event delegation.
+     * Handles mouseenter on highlight marks and username badges
+     * via event delegation.
      * @param {MouseEvent} e
      */
     function handleMouseOver(e) {
-        const mark = e.target.closest(
-            `promo-hl.${CSS_CLASSES.highlightRed}, promo-hl.${CSS_CLASSES.highlightYellow}`
-        );
+        // Check for highlight marks
+        let mark = e.target.closest(TRIGGER_SELECTOR);
         if (!mark) return;
+
+        // Cancel any pending hide from a previous hover
+        cancelHide();
 
         // Read reasons from data attribute
         let reasons;
@@ -228,24 +270,24 @@ window.PromoHighlighter.Tooltip = (() => {
     }
 
     /**
-     * Handles mouseleave — hides tooltip when cursor leaves a mark.
+     * Handles mouseleave — starts 3-second linger timer instead
+     * of hiding immediately, giving users time to reach the
+     * tooltip and click the report link.
      * @param {MouseEvent} e
      */
     function handleMouseOut(e) {
-        const mark = e.target.closest(
-            `promo-hl.${CSS_CLASSES.highlightRed}, promo-hl.${CSS_CLASSES.highlightYellow}`
-        );
+        const mark = e.target.closest(TRIGGER_SELECTOR);
         if (!mark) return;
 
-        // Only hide if we're actually leaving the mark
+        // Only start hide timer if we're actually leaving the mark
         const related = e.relatedTarget;
         if (related && mark.contains(related)) return;
 
-        // Don't hide if the mouse moves to the tooltip itself
-        // (so the user can click the report link)
+        // Don't start timer if the mouse moves to the tooltip itself
         if (related && tooltipEl && tooltipEl.contains(related)) return;
 
-        hideTooltip();
+        // Start 3-second linger — tooltip stays visible
+        scheduleHide(3000);
     }
 
     /* ====================================================================== */
@@ -269,12 +311,23 @@ window.PromoHighlighter.Tooltip = (() => {
         document.body.addEventListener('mouseover', handleMouseOver, true);
         document.body.addEventListener('mouseout', handleMouseOut, true);
 
-        // Hide tooltip when mouse leaves the tooltip itself
-        // (but not when entering the report link inside it)
+        // Keep tooltip alive when hovering over it (cancel hide timer)
+        // Hide when leaving the tooltip AND not entering a trigger element
         document.body.addEventListener('mouseover', (e) => {
-            if (tooltipEl && !tooltipEl.contains(e.target) &&
-                !e.target.closest(`promo-hl.${CSS_CLASSES.highlightRed}, promo-hl.${CSS_CLASSES.highlightYellow}`)) {
-                hideTooltip();
+            if (tooltipEl && tooltipEl.contains(e.target)) {
+                // Mouse entered the tooltip — cancel hide
+                cancelHide();
+                return;
+            }
+        }, true);
+
+        document.body.addEventListener('mouseout', (e) => {
+            if (tooltipEl && tooltipEl.contains(e.target)) {
+                const related = e.relatedTarget;
+                // Leaving tooltip — only start timer if not going to a trigger
+                if (related && tooltipEl.contains(related)) return;
+                if (related && related.closest && related.closest(TRIGGER_SELECTOR)) return;
+                scheduleHide(3000);
             }
         }, true);
 
