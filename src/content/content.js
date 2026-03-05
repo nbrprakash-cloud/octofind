@@ -118,44 +118,6 @@ window.PromoHighlighter.ContentScript = (() => {
     /*  Username Badge Injection                                              */
     /* ====================================================================== */
 
-    /** GitHub repo for false-positive reports (same as tooltip.js) */
-    const BADGE_GITHUB_REPO = 'https://github.com/tejasns2408-jpg/octofinder';
-
-    /**
-     * buildBadgeReportUrl
-     * ----------------------------------------------------------------
-     * Builds a pre-filled GitHub Issue URL for false-positive reports
-     * from the username badge.
-     *
-     * @param {string}   username  — The Reddit username.
-     * @param {string}   severity  — 'red' or 'yellow'.
-     * @param {string[]} reasons   — Detection reasons.
-     * @returns {string} GitHub Issue URL.
-     */
-    function buildBadgeReportUrl(username, severity, reasons) {
-        const title = `[False Positive] u/${username}`;
-        const body = [
-            '## False Positive Report',
-            '',
-            `**User:** u/${username}`,
-            `**Severity:** ${severity}`,
-            `**Reasons:** ${reasons.join(', ')}`,
-            `**Page URL:** ${location.href}`,
-            '',
-            '### Why is this a false positive?',
-            '<!-- Briefly explain why this flag is incorrect -->',
-            '',
-        ].join('\n');
-
-        const params = new URLSearchParams({
-            title,
-            body,
-            labels: 'false-positive',
-        });
-
-        return `${BADGE_GITHUB_REPO}/issues/new?${params.toString()}`;
-    }
-
     /**
      * injectUsernameBadge
      * ----------------------------------------------------------------

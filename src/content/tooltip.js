@@ -21,11 +21,7 @@ window.PromoHighlighter.Tooltip = (() => {
     /*  Config                                                                */
     /* ====================================================================== */
 
-    /**
-     * GITHUB_REPO — the GitHub repository where false-positive reports
-     * are filed as Issues.  Update this to your actual repo URL.
-     */
-    const GITHUB_REPO = 'https://github.com/tejasns2408-jpg/octofinder';
+
 
     /** Reference to the singleton tooltip element. */
     let tooltipEl = null;
@@ -96,46 +92,6 @@ window.PromoHighlighter.Tooltip = (() => {
 
         tooltipEl.style.left = `${x}px`;
         tooltipEl.style.top = `${y}px`;
-    }
-
-    /**
-     * buildReportUrl
-     * ----------------------------------------------------------------
-     * Constructs a pre-filled GitHub Issue URL with diagnostic info
-     * so the user doesn't need to describe anything manually.
-     *
-     * @param {string}   flaggedText — The text that was highlighted.
-     * @param {string}   severity    — 'red' or 'yellow'.
-     * @param {string[]} reasons     — Detection reasons.
-     * @returns {string} Full GitHub Issue URL.
-     */
-    function buildReportUrl(flaggedText, severity, reasons) {
-        const truncated = flaggedText.length > 80
-            ? flaggedText.substring(0, 80) + '…'
-            : flaggedText;
-
-        const title = `[False Positive] "${truncated}"`;
-
-        const body = [
-            '## False Positive Report',
-            '',
-            `**Flagged text:** \`${flaggedText}\``,
-            `**Severity:** ${severity}`,
-            `**Reasons:** ${reasons.join(', ')}`,
-            `**Page URL:** ${location.href}`,
-            '',
-            '### Why is this a false positive?',
-            '<!-- Please briefly explain why this mention is not promotional -->',
-            '',
-        ].join('\n');
-
-        const params = new URLSearchParams({
-            title,
-            body,
-            labels: 'false-positive',
-        });
-
-        return `${GITHUB_REPO}/issues/new?${params.toString()}`;
     }
 
     /**
