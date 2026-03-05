@@ -104,6 +104,27 @@ promo-hl.promo-hl-yellow:hover {
   pointer-events: auto;
 }
 
+/* Pinned state — subtle glow border to signal it's locked for 3s */
+.promo-hl-tooltip.promo-hl-pinned {
+  border-color: rgba(100, 220, 255, 0.35);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(100, 220, 255, 0.18),
+    0 0 12px rgba(100, 220, 255, 0.08);
+}
+
+/* Progress bar — sits at the bottom of the tooltip, depletes over 3s */
+.promo-hl-pin-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(100, 220, 255, 0.6), rgba(100, 220, 255, 0.2));
+  border-radius: 0 0 8px 8px;
+  transform-origin: left;
+  transition: none;
+}
+
 .promo-hl-tooltip-header {
   font-weight: 600;
   font-size: 13px;

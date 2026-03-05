@@ -36,9 +36,6 @@ window.PromoHighlighter.Tooltip = (() => {
     /** Currently hovered highlight element — used to build report URL. */
     let currentMark = null;
 
-    /** Timer ID for delayed tooltip hide (3-second linger). */
-    let hideTimer = null;
-
     /** Selectors for all tooltip-triggering elements. */
     const TRIGGER_SELECTOR = [
         `promo-hl.${CSS_CLASSES.highlightRed}`,
@@ -201,43 +198,101 @@ window.PromoHighlighter.Tooltip = (() => {
         positionTooltip(e);
     }
 
-    /**
-     * Hides the tooltip after a delay (default 3 seconds).
-     * Allows time for the user to move their cursor to the
-     * tooltip and click the report link.
-     *
-     * @param {number} [delay=3000] — Milliseconds before hiding.
-     */
-    function scheduleHide(delay = 3000) {
-        cancelHide();
-        hideTimer = setTimeout(() => {
-            if (!tooltipEl) return;
-            tooltipEl.classList.remove('promo-hl-tooltip-visible');
-            tooltipEl.setAttribute('aria-hidden', 'true');
-            currentMark = null;
-        }, delay);
+    /* ====================================================================== */
+    /*  Hide State                                                            */
+    /* ====================================================================== */
+
+    /** Linger timer — hides after 1s when mouse leaves target */
+    let lingerTimer = null;
+
+    /** Pin timer — hides after 3s when user clicked the highlight */
+    let pinTimer = null;
+    let pinAnimFrame = null;
+    let pinStart = null;
+
+    /** Whether tooltip is currently pinned (click mode) */
+    let isPinned = false;
+
+    /** Whether mouse is inside the tooltip box */
+    let overTooltip = false;
+
+    /** Progress bar element inside tooltip when pinned */
+    let progressEl = null;
+
+    function clearLingerTimer() {
+        if (lingerTimer) { clearTimeout(lingerTimer); lingerTimer = null; }
+    }
+
+    function clearPinTimer() {
+        if (pinTimer) { clearTimeout(pinTimer); pinTimer = null; }
+        if (pinAnimFrame) { cancelAnimationFrame(pinAnimFrame); pinAnimFrame = null; }
+        pinStart = null;
     }
 
     /**
-     * Cancels any pending hide timer (e.g. when re-entering
-     * the tooltip or trigger element).
-     */
-    function cancelHide() {
-        if (hideTimer) {
-            clearTimeout(hideTimer);
-            hideTimer = null;
-        }
-    }
-
-    /**
-     * Immediately hides the tooltip (no delay).
+     * Immediately hides tooltip and resets all state.
      */
     function hideTooltip() {
-        cancelHide();
+        clearLingerTimer();
+        clearPinTimer();
+        isPinned = false;
+        overTooltip = false;
         if (!tooltipEl) return;
-        tooltipEl.classList.remove('promo-hl-tooltip-visible');
+        tooltipEl.classList.remove('promo-hl-tooltip-visible', 'promo-hl-pinned');
         tooltipEl.setAttribute('aria-hidden', 'true');
+        if (progressEl) { progressEl.remove(); progressEl = null; }
         currentMark = null;
+    }
+
+    /**
+     * Start 1-second linger before hiding.
+     * Cancelled if mouse re-enters trigger or tooltip.
+     */
+    function scheduleLinger() {
+        clearLingerTimer();
+        lingerTimer = setTimeout(() => {
+            // Only hide if not pinned and not over tooltip
+            if (!isPinned && !overTooltip) {
+                hideTooltip();
+            }
+        }, 1000);
+    }
+
+    /**
+     * Pin the tooltip for 3 seconds with an animated progress bar.
+     * Called when the user clicks a trigger element.
+     */
+    function pinTooltip() {
+        clearLingerTimer();
+        clearPinTimer();
+        isPinned = true;
+        tooltipEl.classList.add('promo-hl-pinned');
+
+        // Create/reset progress bar
+        if (progressEl) progressEl.remove();
+        progressEl = document.createElement('div');
+        progressEl.className = 'promo-hl-pin-progress';
+        tooltipEl.appendChild(progressEl);
+
+        const DURATION = 3000;
+        pinStart = performance.now();
+
+        function tick(now) {
+            const elapsed = now - pinStart;
+            const pct = Math.min(elapsed / DURATION, 1);
+            if (progressEl) progressEl.style.width = `${(1 - pct) * 100}%`;
+
+            if (pct < 1) {
+                pinAnimFrame = requestAnimationFrame(tick);
+            } else {
+                // Time's up
+                isPinned = false;
+                tooltipEl.classList.remove('promo-hl-pinned');
+                if (progressEl) { progressEl.remove(); progressEl = null; }
+                if (!overTooltip) hideTooltip();
+            }
+        }
+        pinAnimFrame = requestAnimationFrame(tick);
     }
 
     /* ====================================================================== */
@@ -245,19 +300,20 @@ window.PromoHighlighter.Tooltip = (() => {
     /* ====================================================================== */
 
     /**
-     * Handles mouseenter on highlight marks and username badges
-     * via event delegation.
-     * @param {MouseEvent} e
+     * Mouse enters a trigger — show tooltip, cancel any pending hide.
      */
     function handleMouseOver(e) {
-        // Check for highlight marks
-        let mark = e.target.closest(TRIGGER_SELECTOR);
+        const mark = e.target.closest(TRIGGER_SELECTOR);
         if (!mark) return;
 
-        // Cancel any pending hide from a previous hover
-        cancelHide();
+        clearLingerTimer();
 
-        // Read reasons from data attribute
+        if (currentMark === mark) {
+            // Already showing — just reposition
+            positionTooltip(e);
+            return;
+        }
+
         let reasons;
         try {
             reasons = JSON.parse(mark.dataset.promoReasons || '[]');
@@ -270,24 +326,45 @@ window.PromoHighlighter.Tooltip = (() => {
     }
 
     /**
-     * Handles mouseleave — starts 3-second linger timer instead
-     * of hiding immediately, giving users time to reach the
-     * tooltip and click the report link.
-     * @param {MouseEvent} e
+     * Mouse leaves a trigger — start 1s linger before hiding.
      */
     function handleMouseOut(e) {
         const mark = e.target.closest(TRIGGER_SELECTOR);
         if (!mark) return;
 
-        // Only start hide timer if we're actually leaving the mark
         const related = e.relatedTarget;
         if (related && mark.contains(related)) return;
-
-        // Don't start timer if the mouse moves to the tooltip itself
+        // Moved to tooltip — stay open
         if (related && tooltipEl && tooltipEl.contains(related)) return;
 
-        // Start 3-second linger — tooltip stays visible
-        scheduleHide(3000);
+        if (!isPinned) scheduleLinger();
+    }
+
+    /**
+     * Click on a trigger — pin tooltip for 3 seconds.
+     */
+    function handleTriggerClick(e) {
+        const mark = e.target.closest(TRIGGER_SELECTOR);
+        if (!mark) return;
+
+        // Ensure tooltip is visible
+        if (currentMark !== mark) {
+            let reasons;
+            try { reasons = JSON.parse(mark.dataset.promoReasons || '[]'); }
+            catch { reasons = ['Promotional mention detected']; }
+            showTooltip(reasons, mark.dataset.promoSeverity || 'yellow', e, mark);
+        }
+        pinTooltip();
+    }
+
+    /**
+     * Click outside — dismiss immediately (unless it's the report link).
+     */
+    function handleClickOutside(e) {
+        if (!tooltipEl) return;
+        if (tooltipEl.contains(e.target)) return;
+        if (e.target.closest && e.target.closest(TRIGGER_SELECTOR)) return;
+        hideTooltip();
     }
 
     /* ====================================================================== */
@@ -296,38 +373,35 @@ window.PromoHighlighter.Tooltip = (() => {
 
     /**
      * init
-     * ----------------------------------------------------------------
-     * Initializes the tooltip system.  Creates the tooltip element and
-     * attaches delegated event listeners.  Safe to call multiple times
-     * (idempotent).
      */
     function init() {
         if (initialized) return;
 
         createTooltipElement();
 
-        // Delegated listeners on document.body — works for all current
-        // and future highlight marks without needing to attach per-element.
         document.body.addEventListener('mouseover', handleMouseOver, true);
         document.body.addEventListener('mouseout', handleMouseOut, true);
+        document.body.addEventListener('click', handleTriggerClick, true);
+        document.addEventListener('click', handleClickOutside, true);
 
-        // Keep tooltip alive when hovering over it (cancel hide timer)
-        // Hide when leaving the tooltip AND not entering a trigger element
+        // Tooltip hover — keep alive indefinitely while inside
         document.body.addEventListener('mouseover', (e) => {
             if (tooltipEl && tooltipEl.contains(e.target)) {
-                // Mouse entered the tooltip — cancel hide
-                cancelHide();
-                return;
+                overTooltip = true;
+                clearLingerTimer();
             }
         }, true);
 
         document.body.addEventListener('mouseout', (e) => {
             if (tooltipEl && tooltipEl.contains(e.target)) {
                 const related = e.relatedTarget;
-                // Leaving tooltip — only start timer if not going to a trigger
                 if (related && tooltipEl.contains(related)) return;
-                if (related && related.closest && related.closest(TRIGGER_SELECTOR)) return;
-                scheduleHide(3000);
+                if (related && related.closest && related.closest(TRIGGER_SELECTOR)) {
+                    overTooltip = false;
+                    return;
+                }
+                overTooltip = false;
+                if (!isPinned) scheduleLinger();
             }
         }, true);
 
