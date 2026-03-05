@@ -7,7 +7,8 @@
     "storage"
   ],
   "host_permissions": [
-    "*://*.reddit.com/*"
+    "*://*.reddit.com/*",
+    "https://*.supabase.co/*"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"
@@ -21,6 +22,7 @@
         "src/shared/constants.js",
         "src/shared/defaults.js",
         "src/shared/storage.js",
+        "src/shared/api.js",
         "src/content/detectors/keyword-detector.js",
         "src/content/detectors/domain-detector.js",
         "src/content/detectors/promo-language-detector.js",

@@ -175,21 +175,50 @@ window.PromoHighlighter.Tooltip = (() => {
         });
         tooltipEl.appendChild(list);
 
-        // ── False Positive Report Link ────────────────────────────────
-        const reportUrl = buildReportUrl(mark.textContent, severity, reasons);
+        // ── False Positive Report ──────────────────────────────────
         const footer = document.createElement('div');
         footer.className = 'promo-hl-tooltip-footer';
 
-        const reportLink = document.createElement('a');
-        reportLink.href = reportUrl;
-        reportLink.target = '_blank';
-        reportLink.rel = 'noopener noreferrer';
-        reportLink.className = 'promo-hl-report-link';
-        reportLink.textContent = '⚑ False positive? Report it';
-        // Prevent tooltip from hiding when clicking the link
-        reportLink.addEventListener('mousedown', (ev) => ev.stopPropagation());
+        const reportBtn = document.createElement('button');
+        reportBtn.className = 'promo-hl-report-link';
+        reportBtn.textContent = '⚑ False positive? Report it';
+        reportBtn.addEventListener('mousedown', (ev) => ev.stopPropagation());
+        reportBtn.addEventListener('click', async (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
 
-        footer.appendChild(reportLink);
+            reportBtn.textContent = 'Submitting…';
+            reportBtn.disabled = true;
+
+            try {
+                const API = window.PromoHighlighter?.API;
+                if (!API) throw new Error('API not loaded');
+
+                const result = await API.submitReport({
+                    flagged_text: mark.textContent,
+                    username: null,
+                    severity,
+                    reasons,
+                    page_url: location.href,
+                    extension_version: chrome.runtime.getManifest?.()?.version,
+                });
+
+                if (result.ok) {
+                    reportBtn.textContent = '✅ Report submitted — thank you!';
+                    reportBtn.style.color = '#4caf50';
+                } else if (result.error === 'rate_limit') {
+                    reportBtn.textContent = '⚠ Too many reports — try later';
+                    reportBtn.style.color = '#e6ac00';
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch {
+                reportBtn.textContent = '❌ Failed — try again';
+                reportBtn.disabled = false;
+            }
+        });
+
+        footer.appendChild(reportBtn);
         tooltipEl.appendChild(footer);
 
         // Position and show

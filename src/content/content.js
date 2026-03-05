@@ -235,18 +235,48 @@ window.PromoHighlighter.ContentScript = (() => {
         badge.dataset.promoSeverity = analysis.severity;
         badge.dataset.promoReasons = JSON.stringify(analysis.reasons);
 
-        // ── False-positive report dropdown (shown on hover via CSS) ──
+        // ── False-positive report (shown on hover via CSS) ──
         const reportDiv = document.createElement('div');
         reportDiv.className = 'promo-hl-badge-report';
 
-        const reportLink = document.createElement('a');
-        reportLink.href = buildBadgeReportUrl(username, analysis.severity, analysis.reasons);
-        reportLink.target = '_blank';
-        reportLink.rel = 'noopener noreferrer';
-        reportLink.textContent = '⚑ Report false positive';
-        reportLink.addEventListener('mousedown', (ev) => ev.stopPropagation());
+        const reportBtn = document.createElement('button');
+        reportBtn.textContent = '⚑ Report false positive';
+        reportBtn.addEventListener('mousedown', (ev) => ev.stopPropagation());
+        reportBtn.addEventListener('click', async (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
 
-        reportDiv.appendChild(reportLink);
+            reportBtn.textContent = 'Submitting…';
+            reportBtn.disabled = true;
+
+            try {
+                const API = window.PromoHighlighter?.API;
+                if (!API) throw new Error('API not loaded');
+
+                const result = await API.submitReport({
+                    flagged_text: null,
+                    username,
+                    severity: analysis.severity,
+                    reasons: analysis.reasons,
+                    page_url: location.href,
+                    extension_version: chrome.runtime.getManifest?.()?.version,
+                });
+
+                if (result.ok) {
+                    reportBtn.textContent = '✅ Reported!';
+                } else if (result.error === 'rate_limit') {
+                    reportBtn.textContent = '⚠ Too many reports';
+                    reportBtn.disabled = false;
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch {
+                reportBtn.textContent = '❌ Failed';
+                reportBtn.disabled = false;
+            }
+        });
+
+        reportDiv.appendChild(reportBtn);
         badge.appendChild(reportDiv);
 
         // Insert badge right after the username link
