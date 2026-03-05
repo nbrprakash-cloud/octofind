@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Octofinder — Coming Soon | Join the Waitlist</title>
+    <meta name="description"
+        content="Octofinder is currently in development. Sign up to get notified when it launches on the Chrome Web Store.">
+    <meta name="author" content="Aimtica">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #05070e;
+            --bg-surface: #0a0d18;
+            --bg-card: #0f1220;
+            --border-dim: rgba(100, 220, 255, 0.07);
+            --border-lit: rgba(100, 220, 255, 0.18);
+            --border-glow: rgba(100, 220, 255, 0.35);
+            --text-primary: #e8edf5;
+            --text-muted: rgba(200, 215, 230, 0.6);
+            --text-bright: #ffffff;
+            --accent: #5ce0ff;
+            --accent-secondary: #7b6eff;
+            --accent-dim: rgba(92, 224, 255, 0.1);
+            --green: #3ddc84;
+            --font: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.65;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Background ── */
+        .bg-glow {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .bg-glow::before,
+        .bg-glow::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(160px);
+            opacity: 0.22;
+            animation: float 22s ease-in-out infinite alternate;
+        }
+
+        .bg-glow::before {
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(92, 224, 255, 0.4), transparent 70%);
+            top: -15%;
+            left: -8%;
+        }
+
+        .bg-glow::after {
+            width: 550px;
+            height: 550px;
+            background: radial-gradient(circle, rgba(123, 110, 255, 0.3), transparent 70%);
+            bottom: -12%;
+            right: -8%;
+            animation-delay: -11s;
+        }
+
+        .dot-grid {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background-image: radial-gradient(circle, rgba(92, 224, 255, 0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(50px, 35px) scale(1.12);
+            }
+        }
+
+        /* ── Nav ── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(5, 7, 14, 0.72);
+            backdrop-filter: blur(20px) saturate(1.4);
+            -webkit-backdrop-filter: blur(20px) saturate(1.4);
+            border-bottom: 1px solid var(--border-dim);
+            padding: 0 2rem;
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .nav-logo img {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .nav-logo span {
+            color: var(--accent);
+        }
+
+        .nav-back {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: color 0.25s;
+        }
+
+        .nav-back:hover {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        /* ── Main Content ── */
+        .waitlist-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 7rem 2rem 4rem;
+            text-align: center;
+        }
+
+        .waitlist-card {
+            max-width: 560px;
+            width: 100%;
+            background: linear-gradient(135deg, var(--bg-card), rgba(92, 224, 255, 0.03));
+            border: 1px solid var(--border-lit);
+            border-radius: 28px;
+            padding: 3.5rem 3rem;
+            box-shadow: 0 0 80px rgba(92, 224, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+            animation: cardFadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        @keyframes cardFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .waitlist-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent-secondary), transparent);
+        }
+
+        .waitlist-mascot {
+            width: 120px;
+            height: auto;
+            margin-bottom: 1.5rem;
+            animation: mascotFloat 4s ease-in-out infinite;
+            filter: drop-shadow(0 12px 30px rgba(92, 224, 255, 0.2));
+        }
+
+        @keyframes mascotFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1.1rem;
+            border-radius: 100px;
+            background: rgba(255, 190, 46, 0.1);
+            border: 1px solid rgba(255, 190, 46, 0.25);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #ffbe2e;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 1.25rem;
+        }
+
+        .status-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ffbe2e;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(255, 190, 46, 0.4);
+            }
+
+            50% {
+                opacity: 0.7;
+                box-shadow: 0 0 0 6px rgba(255, 190, 46, 0);
+            }
+        }
+
+        .waitlist-card h1 {
+            font-size: clamp(1.6rem, 4vw, 2.2rem);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, var(--text-bright), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .waitlist-card .description {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            max-width: 420px;
+            margin: 0 auto 2rem;
+        }
+
+        /* ── Email Form ── */
+        .email-form {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .email-input {
+            flex: 1;
+            padding: 0.85rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-lit);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .email-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .email-input:focus {
+            border-color: var(--border-glow);
+            box-shadow: 0 0 20px rgba(92, 224, 255, 0.1);
+        }
+
+        .submit-btn {
+            padding: 0.85rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, var(--accent), #3ec8ff);
+            color: #05070e;
+            font-family: var(--font);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 0 24px rgba(92, 224, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 40px rgba(92, 224, 255, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Success state */
+        .success-msg {
+            display: none;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            background: rgba(61, 220, 132, 0.1);
+            border: 1px solid rgba(61, 220, 132, 0.25);
+            color: var(--green);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .success-msg.show {
+            display: block;
+            animation: cardFadeIn 0.4s ease forwards;
+        }
+
+        .privacy-note {
+            margin-top: 1.25rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Footer ── */
+        footer {
+            padding: 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border-dim);
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        footer a {
+            color: var(--accent);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 500px) {
+            .email-form {
+                flex-direction: column;
+            }
+
+            .waitlist-card {
+                padding: 2.5rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-glow"></div>
+    <div class="dot-grid"></div>
+
+    <!-- Nav -->
+    <nav>
+        <a href="index.html" class="nav-logo">
+            <img src="assets/mascot.png" alt="Octofinder mascot">
+            <span>Octo</span>finder
+        </a>
+        <a href="index.html" class="nav-back">← Back to Home</a>
+    </nav>
+
+    <!-- Waitlist Content -->
+    <main class="waitlist-container">
+        <div class="waitlist-card">
+            <img src="assets/mascot.png" alt="Octofinder mascot" class="waitlist-mascot">
+            <div class="status-badge">In Development</div>
+            <h1>We're Building Something Cool</h1>
+            <p class="description">
+                Octofinder is currently in active development. We're working hard to bring it
+                to the Chrome Web Store. Drop your email below and be the first to know when it launches!
+            </p>
+
+            <form class="email-form" id="waitlistForm" onsubmit="handleSubmit(event)">
+                <input type="email" class="email-input" id="emailInput" placeholder="you@example.com" required
+                    autocomplete="email">
+                <button type="submit" class="submit-btn" id="submitBtn">Notify Me</button>
+            </form>
+
+            <div class="success-msg" id="successMsg">
+                🎉 You're on the list! We'll email you when Octofinder launches.
+            </div>
+
+            <p class="privacy-note">🔒 No spam, ever. We only send the launch notification.</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>
+            Built by <a href="https://aimtica.com">Aimtica</a> ·
+            <a href="https://github.com/nbrprakash-cloud/octofind" target="_blank">GitHub</a>
+        </p>
+    </footer>
+
+    <script>
+        function handleSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value;
+            const btn = document.getElementById('submitBtn');
+            const msg = document.getElementById('successMsg');
+            const form = document.getElementById('waitlistForm');
+
+            // Disable button
+            btn.textContent = 'Submitting...';
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+
+            // Simulate submit (replace with real API call later)
+            setTimeout(() => {
+                form.style.display = 'none';
+                msg.classList.add('show');
+                console.log('Waitlist signup:', email);
+            }, 800);
+        }
+    </script>
+
+</body>
+
+</html>
