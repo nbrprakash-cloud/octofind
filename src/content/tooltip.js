@@ -384,6 +384,10 @@ window.PromoHighlighter.Tooltip = (() => {
         document.body.addEventListener('click', handleTriggerClick, true);
         document.addEventListener('click', handleClickOutside, true);
 
+        // Dismiss on scroll — the tooltip position is fixed so it would
+        // drift away from its target element as the page moves.
+        window.addEventListener('scroll', hideTooltip, { capture: true, passive: true });
+
         // Tooltip hover — keep alive indefinitely while inside
         document.body.addEventListener('mouseover', (e) => {
             if (tooltipEl && tooltipEl.contains(e.target)) {
