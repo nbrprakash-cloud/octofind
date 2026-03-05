@@ -61,3 +61,46 @@ create policy "auth_update_reports"
   on reports for update
   to authenticated
   using (true);
+
+-- ============================================================
+--  Reviews table — public testimonials submitted via the
+--  reviews page on the landing site.
+-- ============================================================
+
+create table if not exists reviews (
+  id               uuid primary key default gen_random_uuid(),
+  name             text not null,            -- Display name (not stored privately)
+  reddit_username  text,                     -- Optional: u/handle
+  rating           int  not null check (rating between 1 and 5),
+  comment          text not null,            -- Review body
+  approved         boolean default false,    -- Admin approval before showing publicly
+  created_at       timestamptz default now()
+);
+
+-- Index for dashboard ordering
+create index if not exists reviews_created_at_idx on reviews (created_at desc);
+
+alter table reviews enable row level security;
+
+-- Anyone can submit a review
+create policy "anon_insert_reviews"
+  on reviews for insert
+  to anon
+  with check (true);
+
+-- Only approved reviews are publicly readable
+create policy "anon_read_approved_reviews"
+  on reviews for select
+  to anon
+  using (approved = true);
+
+-- Admins can read all and update (approve/reject)
+create policy "auth_read_reviews"
+  on reviews for select
+  to authenticated
+  using (true);
+
+create policy "auth_update_reviews"
+  on reviews for update
+  to authenticated
+  using (true);

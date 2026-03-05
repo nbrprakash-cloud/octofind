@@ -17,8 +17,8 @@ window.PromoHighlighter.API = (() => {
     /*  Config — replace these with your Supabase project values             */
     /* ====================================================================== */
 
-    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+    const SUPABASE_URL = 'https://iheglfcxoprdpggbrbji.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloZWdsZmN4b3ByZHBnZ2JyYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzAxMzgsImV4cCI6MjA4ODMwNjEzOH0.H03ygPkmit2Kkt8k-PN65zyPaQIpSWXqekGxZJxRCfs';
 
     const HEADERS = {
         'Content-Type': 'application/json',
@@ -32,7 +32,7 @@ window.PromoHighlighter.API = (() => {
     /* ====================================================================== */
 
     /** Track submission timestamps to avoid spamming */
-    const _submitted = { reports: [], feedback: [] };
+    const _submitted = { reports: [], feedback: [], reviews: [] };
 
     /**
      * Returns true if the user is within the session rate limit.
@@ -157,5 +157,72 @@ window.PromoHighlighter.API = (() => {
         }
     }
 
-    return Object.freeze({ submitReport, submitFeedback, getStats });
+    /**
+     * submitReview
+     * ----------------------------------------------------------------
+     * Submits a public review to the `reviews` table.
+     * Reviews are held for admin approval before showing publicly.
+     *
+     * @param {Object} data
+     * @param {string} data.name             — Display name
+     * @param {string} [data.reddit_username] — Optional u/handle
+     * @param {number} data.rating           — 1–5 stars
+     * @param {string} data.comment          — Review text
+     * @returns {Promise<{ok: boolean, error?: string}>}
+     */
+    async function submitReview(data) {
+        if (!data.name || !data.comment || !data.rating) {
+            return { ok: false, error: 'missing_fields' };
+        }
+        if (!_rateLimitOk('reviews', 1)) {
+            return { ok: false, error: 'rate_limit' };
+        }
+
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    name: data.name.trim().substring(0, 80),
+                    reddit_username: data.reddit_username?.trim() || null,
+                    rating: Number(data.rating),
+                    comment: data.comment.trim().substring(0, 1000),
+                    approved: false,
+                }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                return { ok: false, error: text };
+            }
+            return { ok: true };
+        } catch (err) {
+            return { ok: false, error: err.message };
+        }
+    }
+
+    /**
+     * getApprovedReviews
+     * ----------------------------------------------------------------
+     * Fetches all approved reviews for display on the reviews page.
+     * Only returns reviews where approved = true (enforced by RLS).
+     *
+     * @param {number} [limit=50] — Max number of reviews to fetch
+     * @returns {Promise<{reviews: Array, error?: string}>}
+     */
+    async function getApprovedReviews(limit = 50) {
+        try {
+            const res = await fetch(
+                `${SUPABASE_URL}/rest/v1/reviews?approved=eq.true&order=created_at.desc&limit=${limit}`,
+                { headers: { ...HEADERS, 'Prefer': 'return=representation' } }
+            );
+            if (!res.ok) return { reviews: [], error: 'fetch_failed' };
+            const data = await res.json();
+            return { reviews: data ?? [] };
+        } catch {
+            return { reviews: [], error: 'network' };
+        }
+    }
+
+    return Object.freeze({ submitReport, submitFeedback, getStats, submitReview, getApprovedReviews });
 })();
