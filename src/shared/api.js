@@ -27,6 +27,18 @@ window.PromoHighlighter.API = (() => {
         'Prefer': 'return=minimal',
     };
 
+    const LIMITS = Object.freeze({
+        reportText: 280,
+        username: 32,
+        reasonsCount: 8,
+        reasonChars: 140,
+        pageUrl: 300,
+        feedbackComment: 800,
+        reviewName: 80,
+        reviewComment: 1000,
+        version: 24,
+    });
+
     /* ====================================================================== */
     /*  Rate-limit guard (client-side, per session)                          */
     /* ====================================================================== */
@@ -49,6 +61,94 @@ window.PromoHighlighter.API = (() => {
         if (_submitted[kind].length >= limitPerHour) return false;
         _submitted[kind].push(now);
         return true;
+    }
+
+    function _cleanText(value, maxLen) {
+        if (typeof value !== 'string') return null;
+        const compact = value.replace(/\s+/g, ' ').trim();
+        if (!compact) return null;
+        return compact.substring(0, maxLen);
+    }
+
+    function _sanitizeVersion(value) {
+        const raw = _cleanText(value, LIMITS.version);
+        if (!raw) return null;
+        return /^\d+\.\d+\.\d+$/.test(raw) ? raw : null;
+    }
+
+    function _currentVersion(fallback = null) {
+        try {
+            const runtimeVersion = chrome.runtime.getManifest?.()?.version || null;
+            return _sanitizeVersion(runtimeVersion || fallback);
+        } catch {
+            return _sanitizeVersion(fallback);
+        }
+    }
+
+    function _sanitizeUsername(value) {
+        const raw = _cleanText(value, LIMITS.username);
+        if (!raw) return null;
+        return /^[A-Za-z0-9_-]{1,32}$/.test(raw) ? raw : null;
+    }
+
+    function _sanitizeSeverity(value) {
+        return value === 'red' ? 'red' : 'yellow';
+    }
+
+    function _sanitizeReasons(reasons) {
+        if (!Array.isArray(reasons)) return [];
+        const seen = new Set();
+        const cleaned = [];
+
+        for (const item of reasons) {
+            const reason = _cleanText(item, LIMITS.reasonChars);
+            if (!reason) continue;
+            const key = reason.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            cleaned.push(reason);
+            if (cleaned.length >= LIMITS.reasonsCount) break;
+        }
+
+        return cleaned;
+    }
+
+    function _sanitizePageUrl(rawUrl) {
+        if (typeof rawUrl !== 'string' || !rawUrl.trim()) return null;
+
+        try {
+            const url = new URL(rawUrl);
+            const host = url.hostname.toLowerCase();
+            if (!/^([a-z0-9-]+\.)?reddit\.com$/.test(host)) return null;
+            return `${url.origin}${url.pathname}`.substring(0, LIMITS.pageUrl);
+        } catch {
+            return null;
+        }
+    }
+
+    function _sanitizeReportText(rawText) {
+        let text = _cleanText(rawText, LIMITS.reportText * 2);
+        if (!text) return null;
+
+        // Remove high-sensitivity material before telemetry leaves the browser.
+        text = text
+            .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
+            .replace(/\bhttps?:\/\/\S+/gi, '[url]')
+            .replace(/\b(token|api[_-]?key|secret|session|auth|code)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+            .replace(/\b[A-Za-z0-9_\-]{24,}\b/g, '[token]')
+            .trim();
+
+        if (text.length < 3) return null;
+        return text.substring(0, LIMITS.reportText);
+    }
+
+    async function _readApiError(res) {
+        const text = (await res.text()).trim();
+        if (/rate_limit/i.test(text)) return 'rate_limit';
+        if (/violates row-level security policy|new row violates check constraint/i.test(text)) {
+            return 'validation_failed';
+        }
+        return text || 'request_failed';
     }
 
     /* ====================================================================== */
@@ -74,28 +174,33 @@ window.PromoHighlighter.API = (() => {
             return { ok: false, error: 'rate_limit' };
         }
 
+        const payload = {
+            flagged_text: _sanitizeReportText(data?.flagged_text),
+            username: _sanitizeUsername(data?.username),
+            severity: _sanitizeSeverity(data?.severity),
+            reasons: _sanitizeReasons(data?.reasons),
+            page_url: _sanitizePageUrl(data?.page_url),
+            extension_version: _currentVersion(data?.extension_version),
+            status: 'pending',
+        };
+
+        if (!payload.extension_version) {
+            return { ok: false, error: 'invalid_extension_version' };
+        }
+
         try {
             const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
                 method: 'POST',
                 headers: HEADERS,
-                body: JSON.stringify({
-                    flagged_text: data.flagged_text || null,
-                    username: data.username || null,
-                    severity: data.severity || 'yellow',
-                    reasons: data.reasons || [],
-                    page_url: data.page_url || null,
-                    extension_version: data.extension_version || null,
-                    status: 'pending',
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!res.ok) {
-                const text = await res.text();
-                return { ok: false, error: text };
+                return { ok: false, error: await _readApiError(res) };
             }
             return { ok: true };
         } catch (err) {
-            return { ok: false, error: err.message };
+            return { ok: false, error: err?.message || 'network' };
         }
     }
 
@@ -115,24 +220,34 @@ window.PromoHighlighter.API = (() => {
             return { ok: false, error: 'rate_limit' };
         }
 
+        const rating = Number(data?.rating);
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return { ok: false, error: 'invalid_rating' };
+        }
+
+        const payload = {
+            rating,
+            comment: _cleanText(data?.comment, LIMITS.feedbackComment),
+            extension_version: _currentVersion(data?.extension_version),
+        };
+
+        if (!payload.extension_version) {
+            return { ok: false, error: 'invalid_extension_version' };
+        }
+
         try {
             const res = await fetch(`${SUPABASE_URL}/rest/v1/feedback`, {
                 method: 'POST',
                 headers: HEADERS,
-                body: JSON.stringify({
-                    rating: data.rating || null,
-                    comment: data.comment || null,
-                    extension_version: data.extension_version || null,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!res.ok) {
-                const text = await res.text();
-                return { ok: false, error: text };
+                return { ok: false, error: await _readApiError(res) };
             }
             return { ok: true };
         } catch (err) {
-            return { ok: false, error: err.message };
+            return { ok: false, error: err?.message || 'network' };
         }
     }
 
@@ -178,26 +293,38 @@ window.PromoHighlighter.API = (() => {
             return { ok: false, error: 'rate_limit' };
         }
 
+        const rating = Number(data.rating);
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return { ok: false, error: 'invalid_rating' };
+        }
+
+        const name = _cleanText(data.name, LIMITS.reviewName);
+        const comment = _cleanText(data.comment, LIMITS.reviewComment);
+        const redditUsername = _sanitizeUsername((data.reddit_username || '').replace(/^u\//i, ''));
+
+        if (!name || !comment || comment.length < 10) {
+            return { ok: false, error: 'invalid_fields' };
+        }
+
         try {
             const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
                 method: 'POST',
                 headers: HEADERS,
                 body: JSON.stringify({
-                    name: data.name.trim().substring(0, 80),
-                    reddit_username: data.reddit_username?.trim() || null,
-                    rating: Number(data.rating),
-                    comment: data.comment.trim().substring(0, 1000),
+                    name,
+                    reddit_username: redditUsername,
+                    rating,
+                    comment,
                     approved: false,
                 }),
             });
 
             if (!res.ok) {
-                const text = await res.text();
-                return { ok: false, error: text };
+                return { ok: false, error: await _readApiError(res) };
             }
             return { ok: true };
         } catch (err) {
-            return { ok: false, error: err.message };
+            return { ok: false, error: err?.message || 'network' };
         }
     }
 

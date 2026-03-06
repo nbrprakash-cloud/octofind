@@ -471,7 +471,7 @@ window.PromoHighlighter.ContentScript = (() => {
                     username,
                     severity: analysis.severity,
                     reasons: analysis.reasons,
-                    page_url: location.href,
+                    page_url: `${location.origin}${location.pathname}`,
                     extension_version: chrome.runtime.getManifest?.()?.version,
                 });
 

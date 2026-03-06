@@ -172,7 +172,7 @@ window.PromoHighlighter.Tooltip = (() => {
                     username: null,
                     severity,
                     reasons,
-                    page_url: location.href,
+                    page_url: `${location.origin}${location.pathname}`,
                     extension_version: chrome.runtime.getManifest?.()?.version,
                 });
 

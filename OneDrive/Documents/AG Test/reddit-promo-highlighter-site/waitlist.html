@@ -8,6 +8,8 @@
     <meta name="description"
         content="Octofinder is currently in development. Sign up to get notified when it launches on the Chrome Web Store.">
     <meta name="author" content="Aimtica">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
@@ -418,7 +420,7 @@
                 to the Chrome Web Store. Drop your email below and be the first to know when it launches!
             </p>
 
-            <form class="email-form" id="waitlistForm" onsubmit="handleSubmit(event)">
+            <form class="email-form" id="waitlistForm">
                 <input type="email" class="email-input" id="emailInput" placeholder="you@example.com" required
                     autocomplete="email">
                 <button type="submit" class="submit-btn" id="submitBtn">Notify Me</button>
@@ -440,27 +442,7 @@
         </p>
     </footer>
 
-    <script>
-        function handleSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById('emailInput').value;
-            const btn = document.getElementById('submitBtn');
-            const msg = document.getElementById('successMsg');
-            const form = document.getElementById('waitlistForm');
-
-            // Disable button
-            btn.textContent = 'Submitting...';
-            btn.disabled = true;
-            btn.style.opacity = '0.6';
-
-            // Simulate submit (replace with real API call later)
-            setTimeout(() => {
-                form.style.display = 'none';
-                msg.classList.add('show');
-                console.log('Waitlist signup:', email);
-            }, 800);
-        }
-    </script>
+    <script src="js/waitlist.js"></script>
 
 </body>
 
