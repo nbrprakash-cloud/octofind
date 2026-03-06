@@ -104,6 +104,35 @@ window.PromoHighlighter.ContentScript = (() => {
     }
 
     /**
+     * Checks if the author of the given wrapper is a moderator.
+     *
+     * @param {HTMLElement|null} wrapper
+     * @returns {boolean}
+     */
+    function isAuthorModerator(wrapper) {
+        if (!wrapper) return false;
+
+        // 1. Shreddit native attribute
+        if (wrapper.getAttribute('author-is-moderator') === 'true' ||
+            wrapper.hasAttribute('author-is-moderator')) {
+            return true;
+        }
+
+        // 2. Look for Moderator badges/flair text nearby
+        const possibleBadges = wrapper.querySelectorAll('.Moderator, [data-testid="post-author-mod"], shreddit-comment-action-row [icon-name="mod_fill"]');
+        if (possibleBadges && possibleBadges.length > 0) return true;
+
+        const allTags = wrapper.querySelectorAll('span');
+        for (const tag of allTags) {
+            if (tag.textContent.trim().toUpperCase() === 'MOD' || tag.textContent.trim().toUpperCase() === 'MODERATOR') {
+                return true; // Likely a mod flair/badge
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Extracts the username from a comment/post wrapper.
      *
      * @param {HTMLElement|null} wrapper
@@ -499,6 +528,11 @@ window.PromoHighlighter.ContentScript = (() => {
         if (!text || text.trim().length < 3) return;
 
         const wrapper = getContentWrapper(commentEl);
+
+        // Fast-fail: Ignore posts/comments from Subreddit Moderators
+        // (Mods are trusted and often post official tools/notices)
+        if (isAuthorModerator(wrapper)) return;
+
         const username = getUsernameFromWrapper(wrapper);
         const extractedLinks = extractLinksFromElement(commentEl);
         const baseInput = {
