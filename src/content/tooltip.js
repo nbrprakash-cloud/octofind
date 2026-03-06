@@ -98,12 +98,13 @@ window.PromoHighlighter.Tooltip = (() => {
      * Shows the tooltip with the given reasons, severity, and a
      * "False positive?" report link.
      *
-     * @param {string[]}    reasons  — Array of reason strings.
-     * @param {string}      severity — 'red' or 'yellow'.
-     * @param {MouseEvent}  e        — The triggering mouse event.
-     * @param {HTMLElement}  mark    — The highlighted element.
+     * @param {string[]}     reasons   — Array of reason strings.
+     * @param {string}       severity  — 'red' or 'yellow'.
+     * @param {MouseEvent}   e         — The triggering mouse event.
+     * @param {HTMLElement}  mark      — The highlighted element.
+     * @param {Object|null}  analysis  — Structured analysis payload.
      */
-    function showTooltip(reasons, severity, e, mark) {
+    function showTooltip(reasons, severity, e, mark, analysis = null) {
         if (!tooltipEl) return;
 
         currentMark = mark;
@@ -121,10 +122,26 @@ window.PromoHighlighter.Tooltip = (() => {
         header.textContent = severityLabel;
         tooltipEl.appendChild(header);
 
+        if (analysis?.label) {
+            const meta = document.createElement('div');
+            meta.className = 'promo-hl-tooltip-meta';
+
+            const confidencePct = typeof analysis.confidence === 'number'
+                ? `${Math.round(analysis.confidence * 100)}%`
+                : 'n/a';
+
+            meta.textContent = `${analysis.label.replace('_', ' ')} • score ${analysis.score ?? 'n/a'} • confidence ${confidencePct}`;
+            tooltipEl.appendChild(meta);
+        }
+
         // Reasons list
         const list = document.createElement('ul');
         list.className = 'promo-hl-tooltip-reasons';
-        reasons.forEach((reason) => {
+        const displayReasons = analysis?.top_reasons?.length
+            ? analysis.top_reasons
+            : reasons;
+
+        displayReasons.forEach((reason) => {
             const li = document.createElement('li');
             li.textContent = reason;
             list.appendChild(li);
@@ -300,14 +317,20 @@ window.PromoHighlighter.Tooltip = (() => {
         }
 
         let reasons;
+        let analysis;
         try {
             reasons = JSON.parse(mark.dataset.promoReasons || '[]');
         } catch {
             reasons = ['Promotional mention detected'];
         }
+        try {
+            analysis = JSON.parse(mark.dataset.promoAnalysis || 'null');
+        } catch {
+            analysis = null;
+        }
 
         const severity = mark.dataset.promoSeverity || 'yellow';
-        showTooltip(reasons, severity, e, mark);
+        showTooltip(reasons, severity, e, mark, analysis);
     }
 
     /**
@@ -335,9 +358,12 @@ window.PromoHighlighter.Tooltip = (() => {
         // Ensure tooltip is visible
         if (currentMark !== mark) {
             let reasons;
+            let analysis;
             try { reasons = JSON.parse(mark.dataset.promoReasons || '[]'); }
             catch { reasons = ['Promotional mention detected']; }
-            showTooltip(reasons, mark.dataset.promoSeverity || 'yellow', e, mark);
+            try { analysis = JSON.parse(mark.dataset.promoAnalysis || 'null'); }
+            catch { analysis = null; }
+            showTooltip(reasons, mark.dataset.promoSeverity || 'yellow', e, mark, analysis);
         }
         pinTooltip();
     }

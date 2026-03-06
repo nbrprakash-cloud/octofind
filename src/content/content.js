@@ -31,7 +31,7 @@ window.PromoHighlighter.ContentScript = (() => {
     /* ====================================================================== */
 
     /** WeakSet of already-processed comment elements — prevents re-scanning. */
-    const processedNodes = new WeakSet();
+    let processedNodes = new WeakSet();
 
     /** Current settings (refreshed on storage change). */
     let settings = null;
@@ -50,6 +50,9 @@ window.PromoHighlighter.ContentScript = (() => {
 
     /** Number of promos found on the current page — sent to badge. */
     let promoCount = 0;
+
+    /** Page-local repetition memory keyed by username. */
+    let authorActivity = new Map();
 
     /* ====================================================================== */
     /*  Scope Guard                                                           */
@@ -84,6 +87,229 @@ window.PromoHighlighter.ContentScript = (() => {
         }
 
         return false;
+    }
+
+    /**
+     * Returns the closest comment/post wrapper for a body element.
+     *
+     * @param {HTMLElement} contentEl
+     * @returns {HTMLElement|null}
+     */
+    function getContentWrapper(contentEl) {
+        return contentEl.closest('shreddit-comment') ||
+            contentEl.closest('.Comment') ||
+            contentEl.closest('[data-testid="comment"]') ||
+            contentEl.closest('shreddit-post') ||
+            contentEl.closest('.Post');
+    }
+
+    /**
+     * Extracts the username from a comment/post wrapper.
+     *
+     * @param {HTMLElement|null} wrapper
+     * @returns {string|null}
+     */
+    function getUsernameFromWrapper(wrapper) {
+        if (!wrapper) return null;
+
+        const links = wrapper.querySelectorAll(SELECTORS.usernameLink);
+        for (const link of links) {
+            const href = link.getAttribute('href') || '';
+            const ariaLabel = link.getAttribute('aria-label') || '';
+            if (!href.startsWith('/user/')) continue;
+            if (ariaLabel.includes('avatar')) continue;
+            return href.replace(/^\/user\//, '').replace(/\/$/, '') || null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Attempts to read the current thread title without relying on
+     * Reddit-specific internals too heavily.
+     *
+     * @returns {string}
+     */
+    function getThreadTitle() {
+        const heading = document.querySelector('h1');
+        if (heading?.textContent?.trim()) {
+            return heading.textContent.trim();
+        }
+
+        return document.title
+            .replace(/\s*:\s*reddit.*$/i, '')
+            .replace(/\s*-\s*reddit.*$/i, '')
+            .trim();
+    }
+
+    /**
+     * Pulls the parent comment text when the current content lives inside
+     * a nested comment. For top-level comments or post bodies, returns null.
+     *
+     * @param {HTMLElement} contentEl
+     * @returns {string|null}
+     */
+    function getParentText(contentEl) {
+        const wrapper = getContentWrapper(contentEl);
+        if (!wrapper) return null;
+
+        const parentWrapper = wrapper.parentElement?.closest('shreddit-comment') ||
+            wrapper.parentElement?.closest('.Comment') ||
+            wrapper.parentElement?.closest('[data-testid="comment"]');
+        if (!parentWrapper) return null;
+
+        const selectors = [
+            ...SELECTORS.commentBody.split(','),
+            ...SELECTORS.postBody.split(','),
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const body = parentWrapper.querySelector(selector.trim());
+                if (body?.textContent?.trim()) {
+                    return body.textContent.trim();
+                }
+            } catch {
+                // Ignore invalid selectors
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extracts subreddit name from the current URL.
+     *
+     * @returns {string}
+     */
+    function getSubredditFromUrl() {
+        const match = location.pathname.match(/\/r\/([^/]+)/i);
+        return match?.[1]?.toLowerCase() || '';
+    }
+
+    /**
+     * Extracts full hyperlink metadata from the content element so the
+     * scoring engine can classify product, docs, repo, or referral links.
+     *
+     * @param {HTMLElement} contentEl
+     * @returns {Array<{url: string, domain: string, path: string, query: string, is_shortener: boolean, is_safe_reference: boolean, has_referral_param: boolean, has_tracking_param: boolean}>}
+     */
+    function extractLinksFromElement(contentEl) {
+        const links = contentEl.querySelectorAll('a[href]');
+        const extracted = [];
+
+        links.forEach((a) => {
+            const href = a.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('/') || href.startsWith('javascript:')) {
+                return;
+            }
+
+            try {
+                const url = new URL(href);
+                extracted.push({
+                    url: url.href,
+                    domain: url.hostname,
+                    path: url.pathname || '',
+                    query: url.search || '',
+                    is_shortener: ['bit.ly', 'cutt.ly', 'tinyurl.com', 't.co', 'tiny.cc', 'rebrand.ly'].includes(url.hostname.replace(/^www\./, '').toLowerCase()),
+                    is_safe_reference: false,
+                    has_referral_param: /(?:^|[?&])(?:ref|referral|aff|affiliate|via|coupon|partner)=/i.test(url.search),
+                    has_tracking_param: /(?:^|[?&])utm_[a-z_]+=/i.test(url.search),
+                });
+            } catch {
+                // Ignore invalid URLs
+            }
+        });
+
+        return extracted;
+    }
+
+    /**
+     * Looks up page-local repetition counts for the current author.
+     *
+     * @param {string|null} username
+     * @param {{uniqueDomains: string[], productAnchors: string[], fingerprint: string}} featureSummary
+     * @returns {{same_domain_count: number, same_product_count: number, near_duplicate_comment_count: number}}
+     */
+    function getAuthorRepetition(username, featureSummary) {
+        if (!username) {
+            return {
+                same_domain_count: 0,
+                same_product_count: 0,
+                near_duplicate_comment_count: 0,
+            };
+        }
+
+        const history = authorActivity.get(username);
+        if (!history) {
+            return {
+                same_domain_count: 0,
+                same_product_count: 0,
+                near_duplicate_comment_count: 0,
+            };
+        }
+
+        let sameDomainCount = 0;
+        for (const domain of featureSummary.uniqueDomains || []) {
+            sameDomainCount = Math.max(sameDomainCount, history.domains.get(domain) || 0);
+        }
+
+        let sameProductCount = 0;
+        for (const product of featureSummary.productAnchors || []) {
+            sameProductCount = Math.max(sameProductCount, history.products.get(product.toLowerCase()) || 0);
+        }
+
+        return {
+            same_domain_count: sameDomainCount,
+            same_product_count: sameProductCount,
+            near_duplicate_comment_count: history.fingerprints.get(featureSummary.fingerprint || '') || 0,
+        };
+    }
+
+    /**
+     * Records the current item's author-level footprint for future comments.
+     *
+     * @param {string|null} username
+     * @param {{uniqueDomains: string[], productAnchors: string[], fingerprint: string}} featureSummary
+     */
+    function recordAuthorActivity(username, featureSummary) {
+        if (!username) return;
+
+        const existing = authorActivity.get(username) || {
+            domains: new Map(),
+            products: new Map(),
+            fingerprints: new Map(),
+        };
+
+        for (const domain of featureSummary.uniqueDomains || []) {
+            existing.domains.set(domain, (existing.domains.get(domain) || 0) + 1);
+        }
+
+        for (const product of featureSummary.productAnchors || []) {
+            const key = product.toLowerCase();
+            existing.products.set(key, (existing.products.get(key) || 0) + 1);
+        }
+
+        if (featureSummary.fingerprint) {
+            existing.fingerprints.set(
+                featureSummary.fingerprint,
+                (existing.fingerprints.get(featureSummary.fingerprint) || 0) + 1
+            );
+        }
+
+        authorActivity.set(username, existing);
+    }
+
+    /**
+     * Clears page-local processing state so a fresh scan can re-evaluate
+     * existing DOM with new settings or on SPA navigation.
+     */
+    function resetPageAnalysisState() {
+        processedNodes = new WeakSet();
+        authorActivity = new Map();
+        pendingNodes.clear();
+        promoCount = 0;
+        updateBadge();
     }
 
     /* ====================================================================== */
@@ -132,11 +358,7 @@ window.PromoHighlighter.ContentScript = (() => {
         if (!analysis.severity) return;
 
         // Walk up to find the comment/post wrapper
-        const wrapper = commentEl.closest('shreddit-comment') ||
-            commentEl.closest('.Comment') ||
-            commentEl.closest('[data-testid="comment"]') ||
-            commentEl.closest('shreddit-post') ||
-            commentEl.closest('.Post');
+        const wrapper = getContentWrapper(commentEl);
         if (!wrapper) return;
 
         // Find the username link inside the wrapper
@@ -178,8 +400,7 @@ window.PromoHighlighter.ContentScript = (() => {
         if (parent.querySelector('.' + CSS_CLASSES.usernameBadge)) return;
 
         // Extract username from href (e.g. "/user/n4r735/" → "n4r735")
-        const href = usernameEl.getAttribute('href') || '';
-        const username = href.replace(/^\/user\//, '').replace(/\/$/, '') || 'unknown';
+        const username = getUsernameFromWrapper(usernameEl.closest('shreddit-comment') || usernameEl.closest('.Comment') || usernameEl.closest('[data-testid="comment"]') || usernameEl.closest('shreddit-post') || usernameEl.closest('.Post')) || 'unknown';
 
         // Build badge element
         const badge = document.createElement('span');
@@ -196,6 +417,7 @@ window.PromoHighlighter.ContentScript = (() => {
         // Store data for tooltip interop
         badge.dataset.promoSeverity = analysis.severity;
         badge.dataset.promoReasons = JSON.stringify(analysis.reasons);
+        badge.dataset.promoAnalysis = JSON.stringify(analysis.explanation);
 
         // ── False-positive report (shown on hover via CSS) ──
         const reportDiv = document.createElement('div');
@@ -276,34 +498,32 @@ window.PromoHighlighter.ContentScript = (() => {
         const text = commentEl.textContent;
         if (!text || text.trim().length < 3) return;
 
-        // ── Extract URLs from hyperlinks ──────────────────────────────
-        // When a user writes [tool name](https://tool.com), textContent
-        // only sees "tool name". We pull out the href so the domain
-        // detector can flag "tool.com".
-        const links = commentEl.querySelectorAll('a[href]');
-        const hrefs = [];
-        links.forEach((a) => {
-            const href = a.getAttribute('href');
-            if (href && !href.startsWith('#') && !href.startsWith('/') &&
-                !href.startsWith('javascript:')) {
-                // Extract just the hostname for cleaner detection
-                try {
-                    const url = new URL(href);
-                    hrefs.push(url.hostname);
-                } catch {
-                    // Not a valid URL — include raw href as-is
-                    hrefs.push(href);
-                }
-            }
-        });
+        const wrapper = getContentWrapper(commentEl);
+        const username = getUsernameFromWrapper(wrapper);
+        const extractedLinks = extractLinksFromElement(commentEl);
+        const baseInput = {
+            item_type: wrapper?.matches?.('shreddit-post, .Post') ? 'post' : 'comment',
+            text,
+            subreddit: getSubredditFromUrl(),
+            thread_title: getThreadTitle(),
+            parent_text: getParentText(commentEl),
+            extracted_links: extractedLinks,
+            extracted_domains: extractedLinks.map((link) => link.domain),
+            links_present: extractedLinks.length > 0,
+        };
 
-        // Append extracted URLs to the text so detectors can see them
-        const enrichedText = hrefs.length > 0
-            ? text + ' ' + hrefs.join(' ')
-            : text;
+        const featureSummary = ScoringEngine.buildItemFeatures(baseInput, settings.keywords);
+        const authorRepetition = getAuthorRepetition(username, featureSummary);
+        const analysis = ScoringEngine.analyzeItem(
+            {
+                ...baseInput,
+                author_repetition_on_page: authorRepetition,
+            },
+            settings.keywords,
+            featureSummary
+        );
 
-        // Run through the scoring engine
-        const analysis = ScoringEngine.analyzeText(enrichedText, settings.keywords);
+        recordAuthorActivity(username, analysis.featureSummary || featureSummary);
 
         // Only highlight if a severity threshold was crossed
         if (analysis.severity) {
@@ -318,6 +538,7 @@ window.PromoHighlighter.ContentScript = (() => {
             const sevClass = analysis.severity === 'red'
                 ? CSS_CLASSES.highlightRed
                 : CSS_CLASSES.highlightYellow;
+            const links = commentEl.querySelectorAll('a[href]');
 
             links.forEach((a) => {
                 const href = a.getAttribute('href');
@@ -332,6 +553,7 @@ window.PromoHighlighter.ContentScript = (() => {
                         a.classList.add(sevClass);
                         a.dataset.promoSeverity = analysis.severity;
                         a.dataset.promoReasons = JSON.stringify(analysis.reasons);
+                        a.dataset.promoAnalysis = JSON.stringify(analysis.explanation);
                         if (analysis.severity === 'red') {
                             a.style.setProperty('background', 'rgba(220,53,69,0.38)', 'important');
                             a.style.setProperty('border-bottom', '2px solid rgba(220,53,69,0.7)', 'important');
@@ -521,8 +743,7 @@ window.PromoHighlighter.ContentScript = (() => {
     function checkUrlChange() {
         if (location.href !== lastUrl) {
             lastUrl = location.href;
-            promoCount = 0;
-            updateBadge();
+            resetPageAnalysisState();
 
             // Small delay to let Reddit render the new page content
             setTimeout(() => {
@@ -538,8 +759,7 @@ window.PromoHighlighter.ContentScript = (() => {
      */
     function setupNavigationListeners() {
         window.addEventListener('popstate', () => {
-            promoCount = 0;
-            updateBadge();
+            resetPageAnalysisState();
             setTimeout(() => {
                 lastUrl = location.href;
                 findAndProcessContent();
@@ -567,16 +787,17 @@ window.PromoHighlighter.ContentScript = (() => {
 
         if (settings.enabled && !wasEnabled) {
             Tooltip.init();
+            resetPageAnalysisState();
             findAndProcessContent();
             startObserver();
         } else if (!settings.enabled && wasEnabled) {
             stopObserver();
             Highlighter.removeHighlights();
             Tooltip.destroy();
-            promoCount = 0;
-            updateBadge();
+            resetPageAnalysisState();
         } else if (settings.enabled) {
             Highlighter.removeHighlights();
+            resetPageAnalysisState();
             findAndProcessContent();
         }
     }

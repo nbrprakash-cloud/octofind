@@ -148,9 +148,10 @@ window.PromoHighlighter.Highlighter = (() => {
      * @param {number}   length    — Number of characters to wrap.
      * @param {string}   severity  — 'red' or 'yellow'.
      * @param {string[]} reasons   — Reason strings for the tooltip.
+     * @param {string}   [analysisPayload] — Structured explanation payload.
      * @returns {{ el: HTMLElement, afterNode: Text|null }}
      */
-    function wrapSegment(textNode, offset, length, severity, reasons) {
+    function wrapSegment(textNode, offset, length, severity, reasons, analysisPayload) {
         const text = textNode.textContent;
 
         // Guard: bounds check
@@ -174,6 +175,9 @@ window.PromoHighlighter.Highlighter = (() => {
         // Store data for the tooltip
         el.dataset.promoReasons = JSON.stringify(reasons);
         el.dataset.promoSeverity = severity;
+        if (analysisPayload) {
+            el.dataset.promoAnalysis = analysisPayload;
+        }
 
         // Build replacement fragment
         const frag = document.createDocumentFragment();
@@ -216,6 +220,7 @@ window.PromoHighlighter.Highlighter = (() => {
      */
     function highlightComment(commentEl, analysis) {
         if (!analysis.severity || analysis.matches.length === 0) return;
+        const analysisPayload = JSON.stringify(analysis.explanation || {});
 
         // 1. Collect text nodes
         const textNodes = collectTextNodes(commentEl);
@@ -269,7 +274,8 @@ window.PromoHighlighter.Highlighter = (() => {
                         seg.offsetInNode,
                         seg.length,
                         analysis.severity,
-                        analysis.reasons
+                        analysis.reasons,
+                        analysisPayload
                     );
                 }
             } else if (segments.length > 1) {
@@ -284,7 +290,8 @@ window.PromoHighlighter.Highlighter = (() => {
                             seg.offsetInNode,
                             seg.length,
                             analysis.severity,
-                            analysis.reasons
+                            analysis.reasons,
+                            analysisPayload
                         );
                     }
                 }
